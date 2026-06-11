@@ -1,0 +1,25 @@
+{
+  "name": "@oondemand/oon-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monorepo da plataforma oonCore v4 (Core back/front + Centrais de exemplo).",
+  "overrides": {
+    "webpack": "5.95.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/central-exemplo/backend",
+    "examples/central-exemplo/frontend"
+  ],
+  "scripts": {
+    "build": "npm run build -w @oondemand/oon-core-front",
+    "publish:all": "npm publish -w @oondemand/oon-core-back -w @oondemand/oon-core-front -w @oondemand/create-central-oon",
+    "version:patch": "npm version patch -w @oondemand/oon-core-back -w @oondemand/oon-core-front -w @oondemand/create-central-oon --no-git-tag-version",
+    "version:minor": "npm version minor -w @oondemand/oon-core-back -w @oondemand/oon-core-front -w @oondemand/create-central-oon --no-git-tag-version",
+    "version:major": "npm version major -w @oondemand/oon-core-back -w @oondemand/oon-core-front -w @oondemand/create-central-oon --no-git-tag-version",
+"test:core": "npm test -w @oondemand/oon-core-back",
+    "typecheck:front": "npm run typecheck -w @oondemand/oon-core-front",
+    "dev:exemplo": "npm run dev -w central-exemplo-backend",
+    "dev:exemplo-front": "npm run dev -w central-exemplo-frontend"
+  }
+}

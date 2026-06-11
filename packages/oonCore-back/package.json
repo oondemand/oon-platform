@@ -1,0 +1,55 @@
+{
+  "name": "@oondemand/oon-core-back",
+  "version": "0.1.1",
+  "description": "Core runtime para Centrais Oon: Model Registry, CRUD/RBAC automáticos, módulos opinativos (Omie, Assistentes, Multi-moedas, Esteiras, Documentos) e deploy embutido.",
+  "main": "src/index.js",
+  "bin": {
+    "oonCore-back": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "oondemand",
+    "ooncore",
+    "central",
+    "model-registry",
+    "express",
+    "mongoose"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.5.4",
+    "morgan": "^1.10.0"
+  },
+  "peerDependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "peerDependenciesMeta": {
+    "xlsx": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.2.0"
+  }
+}

@@ -1,0 +1,38 @@
+# Infra local da Central Exemplo: só o que precisa de container.
+# O backend (oonCore-back) e o frontend (oonCore-front) rodam via npm, pois
+# consomem os pacotes do monorepo por symlink de workspace.
+#
+#   docker compose up -d            # sobe Mongo (+ mongo-express)
+#   docker compose down             # derruba
+#   docker compose down -v          # derruba e apaga os dados
+services:
+  mongo:
+    image: mongo:7
+    container_name: central-exemplo-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # UI web opcional para inspecionar o banco em http://localhost:8081
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: central-exemplo-mongo-ui
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      ME_CONFIG_BASICAUTH: "false"
+
+volumes:
+  mongo-data:

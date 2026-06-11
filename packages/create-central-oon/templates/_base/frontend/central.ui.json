@@ -1,0 +1,9 @@
+{
+  "name": "__NAME__",
+  "slug": "__SLUG__",
+  "backend": { "metadataUrl": "/core/metadata" },
+  "navigation": { "mode": "auto" },
+  "collections": [],
+  "pipelines": [],
+  "documents": []
+}

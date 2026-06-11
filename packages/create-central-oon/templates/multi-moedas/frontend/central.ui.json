@@ -1,0 +1,12 @@
+{
+  "name": "__NAME__",
+  "slug": "__SLUG__",
+  "backend": { "metadataUrl": "/core/metadata" },
+  "navigation": { "mode": "auto" },
+  "collections": [
+    { "model": "Moeda", "mode": "dynamic", "section": "Multi-moedas" },
+    { "model": "Cotacao", "mode": "dynamic", "section": "Multi-moedas" }
+  ],
+  "pipelines": [],
+  "documents": []
+}

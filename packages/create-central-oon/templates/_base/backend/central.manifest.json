@@ -1,0 +1,10 @@
+{
+  "SERVICE_NAME": "__SLUG__",
+  "NAMESPACE": "__SLUG__",
+  "IMAGE": "ghcr.io/oondemand/__SLUG__-backend",
+  "IMAGE_TAG": "latest",
+  "HOST": "__SLUG__.oondemand.com",
+  "REPLICAS": "1",
+  "HPA_MIN": "1",
+  "HPA_MAX": "3"
+}

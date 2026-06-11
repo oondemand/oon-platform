@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${SERVICE_NAME}
+  namespace: ${NAMESPACE}
+spec:
+  replicas: ${REPLICAS}
+  selector:
+    matchLabels:
+      app: ${SERVICE_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${SERVICE_NAME}
+    spec:
+      containers:
+        - name: ${SERVICE_NAME}-container
+          image: ${IMAGE}:${IMAGE_TAG}
+          ports:
+            - containerPort: ${PORT}
+          resources:
+            requests:
+              memory: "${MEM_REQUEST}"
+              cpu: "${CPU_REQUEST}"
+            limits:
+              memory: "${MEM_LIMIT}"
+              cpu: "${CPU_LIMIT}"
+          envFrom:
+            - configMapRef:
+                name: ${SERVICE_NAME}-config
+            - secretRef:
+                name: ${SERVICE_NAME}-secret

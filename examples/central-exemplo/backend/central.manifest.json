@@ -1,0 +1,10 @@
+{
+  "SERVICE_NAME": "central-exemplo",
+  "NAMESPACE": "central-exemplo",
+  "IMAGE": "ghcr.io/oondemand/central-exemplo-backend",
+  "IMAGE_TAG": "latest",
+  "HOST": "central-exemplo.oondemand.com",
+  "REPLICAS": "1",
+  "HPA_MIN": "1",
+  "HPA_MAX": "3"
+}

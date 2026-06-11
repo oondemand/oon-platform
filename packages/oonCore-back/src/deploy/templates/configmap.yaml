@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${SERVICE_NAME}-config
+  namespace: ${NAMESPACE}
+data:
+  NODE_ENV: "${NODE_ENV}"
+  SERVICE_NAME: "${SERVICE_NAME}"
+  SERVICE_VERSION: "${IMAGE_TAG}"
+  PORT: "${PORT}"
+  DB_SERVER: "${DB_SERVER}"
+  DB_NAME: "${DB_NAME}"
+  DB_AUTH_SOURCE: "${DB_AUTH_SOURCE}"
+  DB_REPLICA_SET: "${DB_REPLICA_SET}"
+  DB_TSL: "${DB_TSL}"
+  MEUS_APPS_BACKEND_URL: "${MEUS_APPS_BACKEND_URL}"

@@ -1,0 +1,11 @@
+{
+  "name": "__NAME__",
+  "slug": "__SLUG__",
+  "backend": { "metadataUrl": "/core/metadata" },
+  "navigation": { "mode": "auto" },
+  "collections": [{ "model": "Cliente", "mode": "dynamic", "section": "Cadastros" }],
+  "pipelines": [
+    { "model": "ServicoPrestado", "label": "Serviços prestados", "stageField": "etapa", "section": "Operação" }
+  ],
+  "documents": []
+}
