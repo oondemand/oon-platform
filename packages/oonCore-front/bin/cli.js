@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-"use strict";
 
 /**
  * CLI do @oondemand/oon-core-front (Fase 3 — Seção 4.5).
@@ -15,9 +14,9 @@
  * VITE_API_URL no .env do projeto.
  */
 
-const path = require("node:path");
-const fs = require("node:fs");
-const { spawnSync } = require("node:child_process");
+import path from "node:path";
+import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const cmd = process.argv[2];
 const cwd = process.cwd();
