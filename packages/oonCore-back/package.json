@@ -1,6 +1,6 @@
 {
   "name": "@oondemand/oon-core-back",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Core runtime para Centrais Oon: Model Registry, CRUD/RBAC automáticos, módulos opinativos (Omie, Assistentes, Multi-moedas, Esteiras, Documentos) e deploy embutido.",
   "main": "src/index.js",
   "bin": {
