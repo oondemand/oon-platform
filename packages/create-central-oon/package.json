@@ -1,6 +1,6 @@
 {
   "name": "@oondemand/create-central-oon",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Gerador de Centrais Oon: cria backend + frontend mínimos (só domínio + declaração) prontos para consumir @oondemand/oon-core-back e @oondemand/oon-core-front.",
   "main": "src/index.js",
   "exports": {
