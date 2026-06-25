@@ -1,6 +1,11 @@
 {
   "name": "@oondemand/create-central-oon",
   "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oondemand/oon-platform.git",
+    "directory": "packages/create-central-oon"
+  },
   "description": "Gerador de Centrais Oon: cria backend + frontend mínimos (só domínio + declaração) prontos para consumir @oondemand/oon-core-back e @oondemand/oon-core-front.",
   "main": "src/index.js",
   "exports": {

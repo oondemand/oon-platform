@@ -1,6 +1,11 @@
 {
   "name": "@oondemand/oon-core-back",
   "version": "0.2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oondemand/oon-platform.git",
+    "directory": "packages/oonCore-back"
+  },
   "description": "Core runtime para Centrais Oon: Model Registry, CRUD/RBAC automáticos, módulos opinativos (Omie, Assistentes, Multi-moedas, Esteiras, Documentos) e deploy embutido.",
   "main": "src/index.js",
   "bin": {
