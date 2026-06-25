@@ -67,7 +67,7 @@ export function CoreAssistant({ assistantCode, label = "Assistente", entity, end
             messages.map((m, idx) => (
               <Flex key={idx} justify={m.role === "user" ? "flex-end" : "flex-start"}>
                 <Box
-                  bg={m.role === "user" ? "blue.500" : "gray.100"}
+                  bg={m.role === "user" ? "brand.500" : "gray.100"}
                   color={m.role === "user" ? "white" : "gray.800"}
                   px={3}
                   py={2}

@@ -25,7 +25,7 @@ export function AuthenticatedLayout({ app, menu }: { app: OonAppConfig; menu: Oo
               <Text fontSize="sm" color="gray.700">
                 {user.nome}
               </Text>
-              <Button size="xs" variant="outline" onClick={logout}>
+              <Button size="xs" variant="outline" colorPalette="brand" onClick={logout}>
                 Sair
               </Button>
             </Flex>

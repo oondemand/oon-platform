@@ -26,7 +26,7 @@ export function Sidebar({ app, menu }: { app: OonAppConfig; menu: OonMenuItem[] 
     <Box as="nav" w="260px" minH="100vh" borderRightWidth="1px" borderColor="gray.200" px={4} py={6} bg="white">
       <Flex align="center" gap={3} mb={8} px={2}>
         {app.logo ? <Image src={app.logo} alt={app.name} maxH="36px" /> : null}
-        <Text fontWeight="bold" fontSize="md">
+        <Text fontWeight="bold" fontSize="md" color="brand.500">
           {app.name}
         </Text>
       </Flex>
@@ -50,9 +50,9 @@ export function Sidebar({ app, menu }: { app: OonAppConfig; menu: OonMenuItem[] 
                     borderRadius="md"
                     fontSize="sm"
                     fontWeight={isActive ? "semibold" : "normal"}
-                    bg={isActive ? "blue.50" : "transparent"}
-                    color={isActive ? "blue.700" : "gray.700"}
-                    _hover={{ bg: isActive ? "blue.50" : "gray.50" }}
+                    bg={isActive ? "brand.50" : "transparent"}
+                    color={isActive ? "brand.700" : "gray.700"}
+                    _hover={{ bg: isActive ? "brand.50" : "gray.50" }}
                   >
                     {item.icon}
                     <span>{item.label}</span>

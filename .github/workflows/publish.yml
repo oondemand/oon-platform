@@ -1,0 +1,53 @@
+name: publish
+
+# Publica os pacotes @oondemand/* no npm quando uma tag de versão é criada.
+# Fluxo: bump de versão -> git tag vX.Y.Z -> push da tag -> este workflow.
+on:
+  push:
+    tags:
+      - "v*"
+  # Permite disparar manualmente pela aba Actions (fallback).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # necessário para npm provenance (--provenance)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build core-front
+        run: npm run build -w @oondemand/oon-core-front
+
+      - name: Test
+        run: |
+          npm test -w @oondemand/oon-core-front
+          npm test -w @oondemand/oon-core-back
+
+      - name: Publish @oondemand/oon-core-back
+        run: npm publish -w @oondemand/oon-core-back --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @oondemand/oon-core-front
+        run: npm publish -w @oondemand/oon-core-front --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @oondemand/create-central-oon
+        run: npm publish -w @oondemand/create-central-oon --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
