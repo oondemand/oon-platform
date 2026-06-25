@@ -1,6 +1,6 @@
 {
   "name": "@oondemand/oon-core-front",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Core de frontend para Centrais Oon: shell, providers, roteamento por metadata, SDK REST do /core/*, RBAC e componentes Core* (Coleção, Documento, Esteira, Multi-moedas, Assistente, Dashboard).",
   "type": "module",
   "main": "dist/index.js",
