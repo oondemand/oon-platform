@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -26,7 +28,23 @@ jobs:
         run: npm ci --silent
 
       - name: Typecheck core-front
-        run: npm run typecheck -w @oondemand/oon-core-front
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck -w @oondemand/oon-core-front > typecheck.log 2>&1
+
+      - name: Upload typecheck log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-log
+          path: typecheck.log
+          if-no-files-found: error
+
+      - name: Fail on typecheck error
+        if: steps.typecheck.outcome == 'failure'
+        run: |
+          cat typecheck.log
+          exit 1
 
       - name: Build core-front
         run: npm run build -w @oondemand/oon-core-front
