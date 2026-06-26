@@ -96,7 +96,7 @@ export function DynamicForm({ title, fields, initialValues, submitting, error, o
                   </Text>
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
-                      required={f.required}
+                      aria-required={f.required}
                       value={values[f.field] ?? ""}
                       onChange={(e) => setField(f.field, e.currentTarget.value)}
                     >
@@ -122,7 +122,7 @@ export function DynamicForm({ title, fields, initialValues, submitting, error, o
                   </Text>
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
-                      required={f.required}
+                      aria-required={f.required}
                       value={values[f.field] ?? ""}
                       onChange={(e) => setField(f.field, e.currentTarget.value)}
                     >
