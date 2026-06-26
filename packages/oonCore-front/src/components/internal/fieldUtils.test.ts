@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FieldMeta } from "../../types";
 import { formFieldsFromMeta } from "./fieldUtils";
-import { referenceOptionLabel } from "./ReferenceSelect";
+import { referenceOptionLabel } from "./referenceUtils";
 
 describe("formFieldsFromMeta", () => {
   it("propaga o modelo relacionado e a obrigatoriedade", () => {
