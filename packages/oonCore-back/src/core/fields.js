@@ -7,7 +7,10 @@
  */
 const mongoose = require("mongoose");
 
-const withMeta = (mongooseDef, meta) => ({ ...mongooseDef, __meta: meta });
+const withMeta = (mongooseDef, meta) => ({
+  ...mongooseDef,
+  __meta: { required: !!mongooseDef.required, ...meta },
+});
 
 const string = (opts = {}) =>
   withMeta(

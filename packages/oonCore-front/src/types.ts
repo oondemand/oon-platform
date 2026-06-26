@@ -24,6 +24,7 @@ export interface FieldMeta {
   kind: FieldKind;
   label?: string;
   searchable?: boolean;
+  required?: boolean;
   /** model referenciada quando kind === "ref". */
   ref?: string;
   /** valores possíveis quando kind === "enum". */
@@ -231,6 +232,8 @@ export interface OonFormFieldDef {
   kind?: FieldKind;
   required?: boolean;
   options?: string[];
+  /** model relacionada quando kind === "ref". */
+  ref?: string;
 }
 
 /** Definição de uma coleção nas três formas da Seção 4.4. */

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Box, Button, Flex, Heading, Input, Stack, Text, NativeSelect } from "@chakra-ui/react";
 import type { OonFormFieldDef } from "../../types";
 import { fieldLabel } from "./fieldUtils";
+import { ReferenceSelect } from "./ReferenceSelect";
 
 export interface DynamicFormProps {
   title: string;
@@ -31,15 +32,16 @@ function toInputValue(value: unknown, kind?: string): string {
   }
   if (typeof value === "object") {
     const obj = value as Record<string, unknown>;
-    return String(obj._id ?? "");
+    return String(obj._id ?? obj.id ?? "");
   }
   return String(value);
 }
 
 /**
  * Formulário gerado a partir das definições de campo (modo dynamic monta isto
- * direto da metadata). Render por `kind`: enum -> select; boolean -> select
- * Sim/Não; date -> input date; currency/number -> number; demais -> texto.
+ * direto da metadata). Render por `kind`: ref -> seletor pesquisável; enum ->
+ * select; boolean -> select Sim/Não; date -> input date;
+ * currency/number -> number; demais -> texto.
  */
 export function DynamicForm({ title, fields, initialValues, submitting, error, onSubmit, onCancel }: DynamicFormProps) {
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -69,14 +71,32 @@ export function DynamicForm({ title, fields, initialValues, submitting, error, o
         <Stack gap={4}>
           {fields.map((f) => {
             const label = fieldLabel({ name: f.field, label: f.label });
+
+            if (f.kind === "ref" && f.ref) {
+              return (
+                <ReferenceSelect
+                  key={f.field}
+                  field={f.field}
+                  label={label}
+                  refModel={f.ref}
+                  value={values[f.field] ?? ""}
+                  initialValue={initialValues?.[f.field]}
+                  required={f.required}
+                  onChange={(value) => setField(f.field, value)}
+                />
+              );
+            }
+
             if (f.kind === "enum" && f.options?.length) {
               return (
                 <Box key={f.field}>
                   <Text fontSize="sm" mb={1} fontWeight="medium">
                     {label}
+                    {f.required ? " *" : ""}
                   </Text>
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
+                      aria-required={f.required}
                       value={values[f.field] ?? ""}
                       onChange={(e) => setField(f.field, e.currentTarget.value)}
                     >
@@ -92,14 +112,17 @@ export function DynamicForm({ title, fields, initialValues, submitting, error, o
                 </Box>
               );
             }
+
             if (f.kind === "boolean") {
               return (
                 <Box key={f.field}>
                   <Text fontSize="sm" mb={1} fontWeight="medium">
                     {label}
+                    {f.required ? " *" : ""}
                   </Text>
                   <NativeSelect.Root size="sm">
                     <NativeSelect.Field
+                      aria-required={f.required}
                       value={values[f.field] ?? ""}
                       onChange={(e) => setField(f.field, e.currentTarget.value)}
                     >
@@ -112,6 +135,7 @@ export function DynamicForm({ title, fields, initialValues, submitting, error, o
                 </Box>
               );
             }
+
             const inputType =
               f.kind === "date"
                 ? "date"

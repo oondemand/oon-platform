@@ -67,6 +67,22 @@ GET    /produtos/export
 
 Todas privadas (auth obrigatório), com RBAC e auditoria nas mutações.
 
+## Relacionamentos
+
+Declare campos relacionados com `fields.ref`. A metadata expõe o modelo de
+origem e se a seleção é obrigatória, permitindo que o `oon-core-front` monte
+automaticamente uma caixa pesquisável:
+
+```js
+fornecedor: fields.ref("Pessoa", {
+  required: true,
+  label: "Fornecedor",
+});
+```
+
+O frontend consulta o `basePath` de `Pessoa`, permite abrir a lista ou digitar
+para filtrar e persiste somente o ObjectId selecionado.
+
 ## API pública
 
 ```js
