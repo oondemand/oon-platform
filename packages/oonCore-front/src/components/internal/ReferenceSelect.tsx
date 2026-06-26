@@ -86,8 +86,9 @@ export function ReferenceSelect({
   onChange,
 }: ReferenceSelectProps) {
   const initialLabel = useMemo(() => initialReferenceLabel(initialValue), [initialValue]);
-  const [search, setSearch] = useState(initialLabel);
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [displayText, setDisplayText] = useState(initialLabel);
+  const [filterText, setFilterText] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [requested, setRequested] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -100,9 +101,9 @@ export function ReferenceSelect({
   const resource = useOonResource<Record<string, unknown>>(basePath);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    const timer = window.setTimeout(() => setDebouncedFilter(filterText.trim()), 250);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [filterText]);
 
   useEffect(() => {
     const input = inputRef.current;
@@ -120,12 +121,12 @@ export function ReferenceSelect({
   }, [open]);
 
   const listQuery = useQuery({
-    queryKey: ["oon", "reference-options", refModel, basePath, debouncedSearch],
+    queryKey: ["oon", "reference-options", refModel, basePath, debouncedFilter],
     queryFn: () =>
       resource.list({
         pageIndex: 0,
         pageSize: 100,
-        searchTerm: debouncedSearch || undefined,
+        searchTerm: debouncedFilter || undefined,
       }),
     enabled: !!schema && requested,
     staleTime: 30_000,
@@ -140,7 +141,7 @@ export function ReferenceSelect({
 
   useEffect(() => {
     if (!currentQuery.data || userEditedRef.current) return;
-    setSearch(referenceOptionLabel(currentQuery.data, schema?.searchable));
+    setDisplayText(referenceOptionLabel(currentQuery.data, schema?.searchable));
   }, [currentQuery.data, schema?.searchable]);
 
   const openList = () => {
@@ -150,8 +151,9 @@ export function ReferenceSelect({
 
   const clear = () => {
     userEditedRef.current = false;
-    setSearch("");
-    setDebouncedSearch("");
+    setDisplayText("");
+    setFilterText("");
+    setDebouncedFilter("");
     onChange("");
     inputRef.current?.focus();
   };
@@ -176,11 +178,14 @@ export function ReferenceSelect({
           aria-autocomplete="list"
           autoComplete="off"
           placeholder="Digite para filtrar"
-          value={search}
+          value={displayText}
           required={required && !value}
+          onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => {
+            const text = event.currentTarget.value;
             userEditedRef.current = true;
-            setSearch(event.currentTarget.value);
+            setDisplayText(text);
+            setFilterText(text);
             onChange("");
             openList();
           }}
@@ -203,7 +208,7 @@ export function ReferenceSelect({
           {open ? "Fechar" : "Abrir lista"}
         </Button>
 
-        {search || value ? (
+        {displayText || value ? (
           <Button size="sm" variant="ghost" type="button" onClick={clear}>
             Limpar
           </Button>
@@ -269,8 +274,9 @@ export function ReferenceSelect({
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       userEditedRef.current = false;
-                      setSearch(optionLabel);
-                      setDebouncedSearch("");
+                      setDisplayText(optionLabel);
+                      setFilterText("");
+                      setDebouncedFilter("");
                       onChange(id);
                       setOpen(false);
                       setRequested(false);
