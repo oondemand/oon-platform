@@ -30,7 +30,9 @@ export function formFieldsFromMeta(fields: FieldMeta[]): OonFormFieldDef[] {
     field: f.name,
     label: fieldLabel(f),
     kind: f.kind,
+    required: f.required,
     options: f.options,
+    ref: f.ref,
   }));
 }
 
