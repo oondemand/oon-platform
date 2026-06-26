@@ -81,6 +81,37 @@ import { CoreCollection } from "@oondemand/oon-core-front";
 <CoreCollection model="Pessoa" />;
 ```
 
+## Campos relacionados pesquisáveis
+
+Todo campo declarado no backend com `fields.ref("Model")` é renderizado como
+uma caixa de seleção pesquisável no formulário dinâmico:
+
+- **Abrir lista** carrega até 100 registros do cadastro relacionado;
+- ao digitar, o Core envia `searchTerm` ao endpoint relacionado e atualiza a
+  lista após um debounce de 250 ms;
+- a opção mostra um rótulo humano derivado de nome, descrição, número ou código;
+- o valor persistido continua sendo o `_id` do registro relacionado;
+- ao editar, o Core busca o registro atual para mostrar o rótulo mesmo quando a
+  API devolve apenas o ObjectId;
+- campos obrigatórios só são válidos depois que uma opção da lista é escolhida.
+
+No modo `full`, informe explicitamente o modelo relacionado:
+
+```ts
+form: [
+  {
+    field: "fornecedor",
+    label: "Fornecedor",
+    kind: "ref",
+    ref: "Pessoa",
+    required: true,
+  },
+];
+```
+
+Nos modos `minimal` e `dynamic`, `ref` e `required` vêm automaticamente da
+metadata emitida pelo `@oondemand/oon-core-back`.
+
 ## CLI
 
 ```bash
@@ -114,9 +145,9 @@ oonCore-front sync:metadata   # baixa /core/metadata do back e cacheia em src/.o
 
 ## Contrato com o back
 
-| `/core/*` (back)        | Uso no front                                   |
-| ----------------------- | ---------------------------------------------- |
-| `GET /core/metadata`    | `useCoreMetadata()` — menu/dashboard/derivação |
-| `GET /core/models/:n`   | `useModelSchema(n)` — modo dynamic             |
-| CRUD em `basePath`      | `useOonResource(basePath)` — list/get/CRUD     |
-| `GET /auth/validar-token` | `AuthProvider` resolve o usuário             |
+| `/core/*` (back)          | Uso no front                                   |
+| ------------------------- | ---------------------------------------------- |
+| `GET /core/metadata`      | `useCoreMetadata()` — menu/dashboard/derivação |
+| `GET /core/models/:n`     | `useModelSchema(n)` — modo dynamic             |
+| CRUD em `basePath`        | `useOonResource(basePath)` — list/get/CRUD     |
+| `GET /auth/validar-token` | `AuthProvider` resolve o usuário               |
