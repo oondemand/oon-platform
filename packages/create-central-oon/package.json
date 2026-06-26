@@ -1,6 +1,6 @@
 {
   "name": "@oondemand/create-central-oon",
-  "version": "0.2.1",
+  "version": "0.2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/oondemand/oon-platform.git",
