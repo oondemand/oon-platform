@@ -226,17 +226,19 @@ export function ReferenceSelect({
             inputRef.current?.focus();
           }}
         >
-          <Box
-            as="svg"
+          <svg
             viewBox="0 0 20 20"
             aria-hidden="true"
-            w="18px"
-            h="18px"
-            transition="transform 0.15s ease"
-            transform={open ? "rotate(180deg)" : "rotate(0deg)"}
+            width="18"
+            height="18"
+            style={{
+              display: "block",
+              transition: "transform 0.15s ease",
+              transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            }}
           >
             <path d="M5.5 7.5 10 12l4.5-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </Box>
+          </svg>
         </Button>
 
         {open ? (
