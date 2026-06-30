@@ -353,7 +353,7 @@ export function ReferenceSelect({
                     _hover={{ color: "#014364", bg: "#F0F7FF" }}
                   >
                     <Text as="strong" fontSize="10px" fontWeight="600">{optionLabel}</Text>
-                    {status ? <Text as="small" color="#98A2B3" fontSize="9px" textTransform="capitalize">{String(status).replaceAll("_", " ")}</Text> : null}
+                    {status ? <Text as="small" color="#98A2B3" fontSize="9px" textTransform="capitalize">{String(status).replace(/_/g, " ")}</Text> : null}
                   </Button>
                 );
               })
