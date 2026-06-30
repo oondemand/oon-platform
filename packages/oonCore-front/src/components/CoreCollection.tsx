@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Box, Heading, Stack } from "@chakra-ui/react";
+import { Box, Heading, Stack, Text } from "@chakra-ui/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CollectionMode, OonColumnDef, OonFormFieldDef } from "../types";
 import { useModelSchema, useOonResource } from "../api/ApiProvider";
@@ -12,14 +12,7 @@ import { ErrorState } from "../shell/ErrorState";
 export interface CoreCollectionProps {
   model: string;
   label?: string;
-  /**
-   * Três formas de declarar a coleção (Seção 4.4):
-   *  - "full"    : colunas + form explícitos (passe `columns` e `form`).
-   *  - "minimal" : só `model`; Core busca a metadata e deriva tudo.
-   *  - "dynamic" : 100% dirigido por /core/models/:model (default).
-   */
   mode?: CollectionMode;
-  /** basePath do recurso; default vem da metadata da model. */
   endpoint?: string;
   columns?: OonColumnDef[];
   form?: OonFormFieldDef[];
@@ -28,17 +21,10 @@ export interface CoreCollectionProps {
 
 type FormState = { open: false } | { open: true; row?: Record<string, unknown> };
 
-/**
- * Componente Core de coleção. Renderiza grid + form de qualquer model do back
- * sem código de UI por entidade. No modo dinâmico, lê /core/models/:model e
- * monta colunas, formulário e endpoint a partir da metadata — esse é o
- * critério de pronto da Fase 3.
- */
+/** Coleção padrão: título operacional, datagrid denso e formulário em diálogo. */
 export function CoreCollection({ model, label, mode = "dynamic", endpoint, columns, form, importExport }: CoreCollectionProps) {
   const needsSchema = mode !== "full" || !columns || !form || !endpoint;
   const schemaQuery = useModelSchema(needsSchema ? model : "");
-
-  // Resolve endpoint/colunas/form: props têm prioridade; metadata preenche o resto.
   const schema = schemaQuery.data;
   const basePath = endpoint ?? schema?.basePath ?? `/${model.toLowerCase()}s`;
   const resolvedColumns = columns ?? (schema ? columnsFromMeta(schema.fields) : []);
@@ -76,8 +62,29 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
   const title = label ?? schema?.name ?? model;
 
   return (
-    <Stack gap={6}>
-      <Heading size="lg">{title}</Heading>
+    <Stack gap={5}>
+      <Box>
+        <Text fontSize="11px" fontWeight="700" color="brand.500" textTransform="uppercase" letterSpacing="0.08em" mb={1}>
+          Coleção
+        </Text>
+        <Heading size="lg" color="#24323A" letterSpacing="-0.02em">
+          {title}
+        </Heading>
+        <Text mt={1} fontSize="13px" color="gray.500">
+          Consulte, filtre e mantenha os registros desta operação.
+        </Text>
+      </Box>
+
+      <DataGrid
+        resource={resource}
+        resourceKey={basePath}
+        columns={resolvedColumns}
+        onCreate={() => setFormState({ open: true })}
+        onEdit={(row) => setFormState({ open: true, row })}
+        onDelete={(row) => {
+          if (window.confirm("Excluir este registro?")) deleteMutation.mutate(row);
+        }}
+      />
 
       {formState.open ? (
         <DynamicForm
@@ -92,21 +99,9 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
             setFormError(null);
           }}
         />
-      ) : (
-        <Box>
-          <DataGrid
-            resource={resource}
-            resourceKey={basePath}
-            columns={resolvedColumns}
-            onCreate={() => setFormState({ open: true })}
-            onEdit={(row) => setFormState({ open: true, row })}
-            onDelete={(row) => {
-              if (window.confirm("Excluir este registro?")) deleteMutation.mutate(row);
-            }}
-          />
-          {importExport ? null /* hook de import/export entra aqui (resource.importMany/exportAll) */ : null}
-        </Box>
-      )}
+      ) : null}
+
+      {importExport ? null : null}
     </Stack>
   );
 }
