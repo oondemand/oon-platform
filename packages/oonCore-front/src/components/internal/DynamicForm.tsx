@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Box, Button, Flex, Heading, Input, NativeSelect, SimpleGrid, Stack, Text } from "@chakra-ui/react";
 import type { OonFormFieldDef } from "../../types";
 import { fieldLabel } from "./fieldUtils";
@@ -26,7 +26,7 @@ function coerce(value: string, kind?: string): unknown {
 
 function toInputValue(value: unknown, kind?: string): string {
   if (value == null) return "";
-  if (kind === "date" && value) {
+  if (kind === "date") {
     try {
       return new Date(value as string).toISOString().slice(0, 10);
     } catch {
@@ -34,8 +34,8 @@ function toInputValue(value: unknown, kind?: string): string {
     }
   }
   if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    return String(obj._id ?? obj.id ?? "");
+    const record = value as Record<string, unknown>;
+    return String(record._id ?? record.id ?? "");
   }
   return String(value);
 }
@@ -48,22 +48,22 @@ function normalize(value: unknown): string {
     .toLowerCase();
 }
 
-function fieldControlId(field: string): string {
+function controlId(field: string): string {
   return `oon-form-field-${field.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
-function fieldErrorId(field: string): string {
-  return `${fieldControlId(field)}-error`;
+function errorId(field: string): string {
+  return `${controlId(field)}-error`;
 }
 
 function validateRequired(fields: OonFormFieldDef[], values: Record<string, string>): FieldErrors {
-  const validation: FieldErrors = {};
+  const errors: FieldErrors = {};
   for (const field of fields) {
     if (field.required && !(values[field.field] ?? "").trim()) {
-      validation[field.field] = `${fieldLabel({ name: field.field, label: field.label })} é obrigatório.`;
+      errors[field.field] = `${fieldLabel({ name: field.field, label: field.label })} é obrigatório.`;
     }
   }
-  return validation;
+  return errors;
 }
 
 function errorMessage(error: unknown): string | null {
@@ -73,72 +73,64 @@ function errorMessage(error: unknown): string | null {
   if (typeof error === "object") {
     const record = error as Record<string, unknown>;
     if (typeof record.message === "string") return record.message;
-    const envelope = record.error;
-    if (envelope && typeof envelope === "object" && typeof (envelope as Record<string, unknown>).message === "string") {
-      return (envelope as Record<string, unknown>).message as string;
+    if (record.error && typeof record.error === "object") {
+      const envelope = record.error as Record<string, unknown>;
+      if (typeof envelope.message === "string") return envelope.message;
     }
   }
   return "Não foi possível salvar o registro.";
 }
 
 function isValidationError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    const message = normalize(errorMessage(error));
-    return message.includes("validacao") || message.includes("validation");
-  }
-  const record = error as Record<string, unknown>;
-  const code = normalize(record.code);
   const message = normalize(errorMessage(error));
-  return code.includes("validation") || message.includes("validacao") || message.includes("validation");
+  if (message.includes("validacao") || message.includes("validation")) return true;
+  if (!error || typeof error !== "object") return false;
+  return normalize((error as Record<string, unknown>).code).includes("validation");
 }
 
-function serverDetails(error: unknown): unknown {
+function detailsFromError(error: unknown): unknown {
   if (!error || typeof error !== "object") return null;
   const record = error as Record<string, unknown>;
   if (record.details != null) return record.details;
 
-  const envelope = record.error;
-  if (envelope && typeof envelope === "object") {
-    const nested = envelope as Record<string, unknown>;
-    if (nested.details != null) return nested.details;
+  if (record.error && typeof record.error === "object") {
+    const envelope = record.error as Record<string, unknown>;
+    if (envelope.details != null) return envelope.details;
   }
 
-  const response = record.response;
-  if (response && typeof response === "object") {
-    const data = (response as Record<string, unknown>).data;
+  if (record.response && typeof record.response === "object") {
+    const data = (record.response as Record<string, unknown>).data;
     if (data && typeof data === "object") {
-      const dataRecord = data as Record<string, unknown>;
-      const dataEnvelope = dataRecord.error;
-      if (dataEnvelope && typeof dataEnvelope === "object") {
-        return (dataEnvelope as Record<string, unknown>).details ?? dataEnvelope;
+      const payload = data as Record<string, unknown>;
+      if (payload.error && typeof payload.error === "object") {
+        const envelope = payload.error as Record<string, unknown>;
+        return envelope.details ?? envelope;
       }
-      return dataRecord.details ?? dataRecord.errors ?? dataRecord;
+      return payload.details ?? payload.errors ?? payload;
     }
   }
-
   return null;
 }
 
 function extractServerFieldErrors(error: unknown, fields: OonFormFieldDef[]): FieldErrors {
-  const result: FieldErrors = {};
-  const byName = new Map<string, OonFormFieldDef>();
-
+  const errors: FieldErrors = {};
+  const fieldMap = new Map<string, OonFormFieldDef>();
   for (const field of fields) {
-    byName.set(normalize(field.field), field);
-    byName.set(normalize(field.label), field);
+    fieldMap.set(normalize(field.field), field);
+    fieldMap.set(normalize(field.label), field);
   }
 
   const resolveField = (candidate: unknown) => {
     if (typeof candidate !== "string") return undefined;
-    const pieces = candidate.split(/[.[\]]+/).filter(Boolean);
-    for (const piece of [candidate, ...pieces].reverse()) {
-      const match = byName.get(normalize(piece.replace(/[`'\"]/g, "")));
+    const parts = candidate.split(/[.[\]]+/).filter(Boolean);
+    for (const part of [candidate, ...parts].reverse()) {
+      const match = fieldMap.get(normalize(part.replace(/[`'\"]/g, "")));
       if (match) return match;
     }
     return undefined;
   };
 
-  const friendlyMessage = (field: OonFormFieldDef, raw: unknown) => {
+  const friendly = (field: OonFormFieldDef, raw: unknown) => {
     const label = fieldLabel({ name: field.field, label: field.label });
     const message = typeof raw === "string" && raw.trim() ? raw.trim() : "Revise o valor informado.";
     const normalized = normalize(message);
@@ -155,54 +147,61 @@ function extractServerFieldErrors(error: unknown, fields: OonFormFieldDef[]): Fi
     }
     if (typeof value === "string") {
       const field = resolveField(keyHint);
-      if (field) result[field.field] = friendlyMessage(field, value);
+      if (field) errors[field.field] = friendly(field, value);
       return;
     }
-    if (typeof value !== "object") return;
-    if (visited.has(value)) return;
+    if (typeof value !== "object" || visited.has(value)) return;
     visited.add(value);
 
     const record = value as Record<string, unknown>;
     const candidate = record.field ?? record.path ?? record.property ?? record.name ?? record.key ?? keyHint;
     const field = resolveField(candidate);
-    const message = record.message ?? record.msg ?? record.reason ?? record.error;
-    if (field && (typeof message === "string" || message == null)) {
-      result[field.field] = friendlyMessage(field, message);
+    const message = record.message ?? record.msg ?? record.reason;
+    if (field && (message == null || typeof message === "string")) {
+      errors[field.field] = friendly(field, message);
     }
 
     for (const [key, nested] of Object.entries(record)) {
-      const directField = resolveField(key);
-      if (directField) {
-        if (typeof nested === "string") {
-          result[directField.field] = friendlyMessage(directField, nested);
-        } else if (nested && typeof nested === "object") {
+      const direct = resolveField(key);
+      if (direct) {
+        if (typeof nested === "string") errors[direct.field] = friendly(direct, nested);
+        else if (nested && typeof nested === "object") {
           const nestedRecord = nested as Record<string, unknown>;
-          result[directField.field] = friendlyMessage(
-            directField,
-            nestedRecord.message ?? nestedRecord.msg ?? nestedRecord.reason
-          );
+          errors[direct.field] = friendly(direct, nestedRecord.message ?? nestedRecord.msg ?? nestedRecord.reason);
         }
       }
-
-      if (["errors", "details", "fields", "validation", "violations", "issues"].includes(key) || !directField) {
-        visit(nested, key);
-      }
+      visit(nested, key);
     }
   };
 
-  visit(serverDetails(error));
-  return result;
+  visit(detailsFromError(error));
+  return errors;
 }
 
 function focusField(field: string) {
   window.setTimeout(() => {
-    const control = document.getElementById(fieldControlId(field)) as HTMLElement | null;
-    control?.scrollIntoView?.({ behavior: "smooth", block: "center" });
-    control?.focus({ preventScroll: true });
+    const element = document.getElementById(controlId(field)) as HTMLElement | null;
+    element?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    element?.focus({ preventScroll: true });
   }, 0);
 }
 
-/** Formulário dinâmico em diálogo, com duas colunas e validação detalhada por campo. */
+function FieldLabel({ id, label, required }: { id: string; label: string; required?: boolean }) {
+  return (
+    <label htmlFor={id}>
+      <Text as="span" display="block" fontSize="12px" mb={1} fontWeight="600" color="#46545C">
+        {label}{required ? <Text as="span" color="red.500"> *</Text> : null}
+      </Text>
+    </label>
+  );
+}
+
+function FieldError({ id, children }: { id?: string; children?: ReactNode }) {
+  if (!children) return null;
+  return <Text id={id} role="alert" fontSize="11px" color="red.600" mt={1}>{children}</Text>;
+}
+
+/** Formulário dinâmico em diálogo, com validação detalhada por campo. */
 export function DynamicForm({
   title,
   fields,
@@ -214,9 +213,9 @@ export function DynamicForm({
   onFieldChange,
 }: DynamicFormProps) {
   const [values, setValues] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const field of fields) init[field.field] = toInputValue(initialValues?.[field.field], field.kind);
-    return init;
+    const initial: Record<string, string> = {};
+    for (const field of fields) initial[field.field] = toInputValue(initialValues?.[field.field], field.kind);
+    return initial;
   });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [dismissedError, setDismissedError] = useState(false);
@@ -235,37 +234,33 @@ export function DynamicForm({
   useEffect(() => {
     setDismissedError(false);
     if (!error) return;
-
     const serverErrors = extractServerFieldErrors(error, fields);
-    const fallbackErrors = isValidationError(error) ? validateRequired(fields, values) : {};
-    const nextErrors = Object.keys(serverErrors).length ? serverErrors : fallbackErrors;
-
-    if (Object.keys(nextErrors).length) {
-      setFieldErrors((current) => ({ ...current, ...nextErrors }));
-      const first = fields.find((field) => nextErrors[field.field]);
-      if (first) focusField(first.field);
-    }
-    // O erro só muda quando uma nova tentativa de persistência é concluída.
+    const fallback = isValidationError(error) ? validateRequired(fields, values) : {};
+    const next = Object.keys(serverErrors).length ? serverErrors : fallback;
+    if (!Object.keys(next).length) return;
+    setFieldErrors((current) => ({ ...current, ...next }));
+    const first = fields.find((field) => next[field.field]);
+    if (first) focusField(first.field);
+    // Uma nova resposta de persistência é a origem desta sincronização.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error]);
 
-  const setField = (name: string, value: string) => {
-    setValues((previous) => ({ ...previous, [name]: value }));
-    setFieldErrors((previous) => {
-      if (!previous[name]) return previous;
-      const next = { ...previous };
-      delete next[name];
+  const setField = (field: string, value: string) => {
+    setValues((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
       return next;
     });
     setDismissedError(true);
     onFieldChange?.();
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validation = validateRequired(fields, values);
-
-    if (Object.keys(validation).length > 0) {
+    if (Object.keys(validation).length) {
       setFieldErrors(validation);
       setDismissedError(true);
       const first = fields.find((field) => validation[field.field]);
@@ -277,8 +272,8 @@ export function DynamicForm({
     setDismissedError(false);
     const payload: Record<string, unknown> = {};
     for (const field of fields) {
-      const coerced = coerce(values[field.field] ?? "", field.kind);
-      if (coerced !== undefined) payload[field.field] = coerced;
+      const value = coerce(values[field.field] ?? "", field.kind);
+      if (value !== undefined) payload[field.field] = value;
     }
     onSubmit(payload);
   };
@@ -287,7 +282,7 @@ export function DynamicForm({
     .filter((field) => fieldErrors[field.field])
     .map((field) => ({ field: field.field, message: fieldErrors[field.field] }));
   const genericError = dismissedError ? null : errorMessage(error);
-  const showGenericError = genericError && !(isValidationError(error) && invalidFields.length > 0);
+  const showGenericError = genericError && !(isValidationError(error) && invalidFields.length);
 
   return (
     <Flex
@@ -306,124 +301,63 @@ export function DynamicForm({
         if (event.currentTarget === event.target && !submitting) onCancel();
       }}
     >
-      <Box
-        bg="white"
-        borderRadius="14px"
-        boxShadow="0 24px 70px rgba(7, 38, 46, 0.28)"
-        w="100%"
-        maxW="900px"
-        maxH="92vh"
-        overflow="hidden"
-      >
+      <Box bg="white" borderRadius="14px" boxShadow="0 24px 70px rgba(7, 38, 46, 0.28)" w="100%" maxW="900px" maxH="92vh" overflow="hidden">
         <Flex px={{ base: 4, md: 6 }} py={4} align="center" borderBottomWidth="1px" borderColor="#E8ECEF" bg="#FCFDFD">
           <Box>
-            <Text fontSize="10px" fontWeight="700" color="brand.500" textTransform="uppercase" letterSpacing="0.08em">
-              Cadastro
-            </Text>
-            <Heading size="md" color="#24323A">
-              {title}
-            </Heading>
+            <Text fontSize="10px" fontWeight="700" color="brand.500" textTransform="uppercase" letterSpacing="0.08em">Cadastro</Text>
+            <Heading size="md" color="#24323A">{title}</Heading>
           </Box>
-          <Button ml="auto" size="sm" variant="ghost" borderRadius="8px" type="button" disabled={submitting} onClick={onCancel}>
-            Fechar
-          </Button>
+          <Button ml="auto" size="sm" variant="ghost" borderRadius="8px" type="button" disabled={submitting} onClick={onCancel}>Fechar</Button>
         </Flex>
 
-        <Box as="form" noValidate onSubmit={handleSubmit}>
+        <form noValidate onSubmit={handleSubmit}>
           <Box px={{ base: 4, md: 6 }} py={5} maxH="calc(92vh - 142px)" overflowY="auto">
             <Stack gap={4}>
-              {invalidFields.length > 0 ? (
+              {invalidFields.length ? (
                 <Box role="alert" aria-live="assertive" borderWidth="1px" borderColor="red.200" borderLeftWidth="4px" borderLeftColor="red.500" bg="red.50" borderRadius="9px" px={4} py={3}>
-                  <Text fontSize="12px" fontWeight="700" color="red.700" mb={1}>
-                    Não foi possível salvar. Corrija os campos abaixo:
-                  </Text>
-                  <Stack as="ul" gap={0.5} pl={4}>
+                  <Text fontSize="12px" fontWeight="700" color="red.700" mb={1}>Não foi possível salvar. Corrija os campos abaixo:</Text>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
                     {invalidFields.map(({ field, message }) => (
-                      <Box as="li" key={field} color="red.700" fontSize="12px">
-                        <Button
-                          type="button"
-                          variant="plain"
-                          minH="auto"
-                          h="auto"
-                          p={0}
-                          color="red.700"
-                          fontSize="12px"
-                          fontWeight="500"
-                          textDecoration="underline"
-                          textUnderlineOffset="2px"
-                          whiteSpace="normal"
-                          textAlign="left"
-                          onClick={() => focusField(field)}
-                        >
+                      <li key={field}>
+                        <Button type="button" variant="plain" minH="auto" h="auto" p={0} color="red.700" fontSize="12px" fontWeight="500" textDecoration="underline" textUnderlineOffset="2px" whiteSpace="normal" textAlign="left" onClick={() => focusField(field)}>
                           {message}
                         </Button>
-                      </Box>
+                      </li>
                     ))}
-                  </Stack>
+                  </ul>
                 </Box>
               ) : null}
 
               {showGenericError ? (
                 <Box role="alert" borderWidth="1px" borderColor="red.200" borderLeftWidth="4px" borderLeftColor="red.500" bg="red.50" borderRadius="9px" px={4} py={3}>
-                  <Text fontSize="12px" color="red.700">
-                    {genericError}
-                  </Text>
+                  <Text fontSize="12px" color="red.700">{genericError}</Text>
                 </Box>
               ) : null}
 
               <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
                 {fields.map((field) => {
                   const label = fieldLabel({ name: field.field, label: field.label });
-                  const validationMessage = fieldErrors[field.field];
-                  const controlId = fieldControlId(field.field);
-                  const errorId = validationMessage ? fieldErrorId(field.field) : undefined;
+                  const message = fieldErrors[field.field];
+                  const id = controlId(field.field);
+                  const describedBy = message ? errorId(field.field) : undefined;
+                  const invalidStyle = message ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined;
 
                   if (field.kind === "ref" && field.ref) {
-                    return (
-                      <ReferenceSelect
-                        key={field.field}
-                        field={field.field}
-                        inputId={controlId}
-                        errorId={errorId}
-                        label={label}
-                        refModel={field.ref}
-                        value={values[field.field] ?? ""}
-                        initialValue={initialValues?.[field.field]}
-                        required={field.required}
-                        invalid={!!validationMessage}
-                        error={validationMessage}
-                        onChange={(value) => setField(field.field, value)}
-                      />
-                    );
+                    return <ReferenceSelect key={field.field} field={field.field} inputId={id} errorId={describedBy} label={label} refModel={field.ref} value={values[field.field] ?? ""} initialValue={initialValues?.[field.field]} required={field.required} invalid={!!message} error={message} onChange={(value) => setField(field.field, value)} />;
                   }
 
                   if (field.kind === "enum" && field.options?.length) {
                     return (
                       <Box key={field.field}>
-                        <Text as="label" htmlFor={controlId} fontSize="12px" mb={1} fontWeight="600" color="#46545C">
-                          {label}{field.required ? <Text as="span" color="red.500"> *</Text> : null}
-                        </Text>
+                        <FieldLabel id={id} label={label} required={field.required} />
                         <NativeSelect.Root size="sm">
-                          <NativeSelect.Field
-                            id={controlId}
-                            required={field.required}
-                            aria-required={field.required}
-                            aria-invalid={!!validationMessage}
-                            aria-describedby={errorId}
-                            value={values[field.field] ?? ""}
-                            borderRadius="8px"
-                            borderColor={validationMessage ? "red.400" : "#DDE3E7"}
-                            boxShadow={validationMessage ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined}
-                            onChange={(event) => setField(field.field, event.currentTarget.value)}
-                          >
+                          <NativeSelect.Field id={id} aria-required={field.required} aria-invalid={!!message} aria-describedby={describedBy} value={values[field.field] ?? ""} borderRadius="8px" borderColor={message ? "red.400" : "#DDE3E7"} boxShadow={invalidStyle} onChange={(event) => setField(field.field, event.currentTarget.value)}>
                             <option value="">Selecione...</option>
-                            {field.options.map((option) => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
+                            {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
                           </NativeSelect.Field>
                           <NativeSelect.Indicator />
                         </NativeSelect.Root>
-                        {validationMessage ? <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{validationMessage}</Text> : null}
+                        <FieldError id={describedBy}>{message}</FieldError>
                       </Box>
                     );
                   }
@@ -431,61 +365,26 @@ export function DynamicForm({
                   if (field.kind === "boolean") {
                     return (
                       <Box key={field.field}>
-                        <Text as="label" htmlFor={controlId} fontSize="12px" mb={1} fontWeight="600" color="#46545C">
-                          {label}{field.required ? <Text as="span" color="red.500"> *</Text> : null}
-                        </Text>
+                        <FieldLabel id={id} label={label} required={field.required} />
                         <NativeSelect.Root size="sm">
-                          <NativeSelect.Field
-                            id={controlId}
-                            required={field.required}
-                            aria-required={field.required}
-                            aria-invalid={!!validationMessage}
-                            aria-describedby={errorId}
-                            value={values[field.field] ?? ""}
-                            borderRadius="8px"
-                            borderColor={validationMessage ? "red.400" : "#DDE3E7"}
-                            boxShadow={validationMessage ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined}
-                            onChange={(event) => setField(field.field, event.currentTarget.value)}
-                          >
+                          <NativeSelect.Field id={id} aria-required={field.required} aria-invalid={!!message} aria-describedby={describedBy} value={values[field.field] ?? ""} borderRadius="8px" borderColor={message ? "red.400" : "#DDE3E7"} boxShadow={invalidStyle} onChange={(event) => setField(field.field, event.currentTarget.value)}>
                             <option value="">Selecione...</option>
                             <option value="true">Sim</option>
                             <option value="false">Não</option>
                           </NativeSelect.Field>
                           <NativeSelect.Indicator />
                         </NativeSelect.Root>
-                        {validationMessage ? <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{validationMessage}</Text> : null}
+                        <FieldError id={describedBy}>{message}</FieldError>
                       </Box>
                     );
                   }
 
-                  const inputType =
-                    field.kind === "date"
-                      ? "date"
-                      : field.kind === "number" || field.kind === "currency" || field.kind === "currencyConverted"
-                        ? "number"
-                        : "text";
-
+                  const inputType = field.kind === "date" ? "date" : field.kind === "number" || field.kind === "currency" || field.kind === "currencyConverted" ? "number" : "text";
                   return (
                     <Box key={field.field}>
-                      <Text as="label" htmlFor={controlId} fontSize="12px" mb={1} fontWeight="600" color="#46545C">
-                        {label}{field.required ? <Text as="span" color="red.500"> *</Text> : null}
-                      </Text>
-                      <Input
-                        id={controlId}
-                        size="sm"
-                        type={inputType}
-                        required={field.required}
-                        aria-required={field.required}
-                        aria-invalid={!!validationMessage}
-                        aria-describedby={errorId}
-                        borderRadius="8px"
-                        borderColor={validationMessage ? "red.400" : "#DDE3E7"}
-                        boxShadow={validationMessage ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined}
-                        value={values[field.field] ?? ""}
-                        onChange={(event) => setField(field.field, event.currentTarget.value)}
-                        _focusVisible={{ borderColor: validationMessage ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${validationMessage ? "#E53E3E" : "#0474AF"}` }}
-                      />
-                      {validationMessage ? <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{validationMessage}</Text> : null}
+                      <FieldLabel id={id} label={label} required={field.required} />
+                      <Input id={id} size="sm" type={inputType} required={field.required} aria-required={field.required} aria-invalid={!!message} aria-describedby={describedBy} borderRadius="8px" borderColor={message ? "red.400" : "#DDE3E7"} boxShadow={invalidStyle} value={values[field.field] ?? ""} onChange={(event) => setField(field.field, event.currentTarget.value)} _focusVisible={{ borderColor: message ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${message ? "#E53E3E" : "#0474AF"}` }} />
+                      <FieldError id={describedBy}>{message}</FieldError>
                     </Box>
                   );
                 })}
@@ -494,14 +393,10 @@ export function DynamicForm({
           </Box>
 
           <Flex px={{ base: 4, md: 6 }} py={4} gap={3} justify="end" borderTopWidth="1px" borderColor="#E8ECEF" bg="#FCFDFD">
-            <Button size="sm" variant="outline" borderRadius="8px" type="button" disabled={submitting} onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button size="sm" colorPalette="brand" borderRadius="8px" type="submit" loading={submitting}>
-              Salvar
-            </Button>
+            <Button size="sm" variant="outline" borderRadius="8px" type="button" disabled={submitting} onClick={onCancel}>Cancelar</Button>
+            <Button size="sm" colorPalette="brand" borderRadius="8px" type="submit" loading={submitting}>Salvar</Button>
           </Flex>
-        </Box>
+        </form>
       </Box>
     </Flex>
   );
