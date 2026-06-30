@@ -18,7 +18,7 @@ export interface ReferenceSelectProps {
   onChange: (value: string) => void;
 }
 
-/** Combobox pesquisável para campos relacionados, com seleção e validação acessíveis. */
+/** Dropdown pesquisável para campos relacionados. */
 export function ReferenceSelect({
   field,
   inputId,
@@ -166,7 +166,11 @@ export function ReferenceSelect({
           value={displayText}
           pr="42px"
           required={required && !value}
-          onFocus={(event) => event.currentTarget.select()}
+          onFocus={(event) => {
+            event.currentTarget.select();
+            openList();
+          }}
+          onClick={openList}
           onChange={(event) => {
             const text = event.currentTarget.value;
             userEditedRef.current = true;
@@ -226,39 +230,13 @@ export function ReferenceSelect({
             inputRef.current?.focus();
           }}
         >
-          <svg
-            viewBox="0 0 20 20"
-            aria-hidden="true"
-            width="18"
-            height="18"
-            style={{
-              display: "block",
-              transition: "transform 0.15s ease",
-              transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            }}
-          >
+          <svg viewBox="0 0 20 20" aria-hidden="true" width="18" height="18" style={{ display: "block", transition: "transform 0.15s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
             <path d="M5.5 7.5 10 12l4.5-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </Button>
 
         {open ? (
-          <Box
-            id={listId}
-            role="listbox"
-            position="absolute"
-            left={0}
-            right={0}
-            top="calc(100% + 4px)"
-            zIndex={30}
-            bg="white"
-            borderWidth="1px"
-            borderColor="#DDE3E7"
-            borderRadius="9px"
-            boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)"
-            maxH="260px"
-            overflowY="auto"
-            p={2}
-          >
+          <Box id={listId} role="listbox" position="absolute" left={0} right={0} top="calc(100% + 4px)" zIndex={30} bg="white" borderWidth="1px" borderColor="#DDE3E7" borderRadius="9px" boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)" maxH="260px" overflowY="auto" p={2}>
             {schemaQuery.isLoading || listQuery.isLoading ? (
               <Flex align="center" gap={2} px={2} py={3}><Spinner size="sm" /><Text fontSize="sm">Carregando lista...</Text></Flex>
             ) : schemaQuery.isError || listQuery.isError ? (
@@ -307,11 +285,7 @@ export function ReferenceSelect({
         ) : null}
       </Box>
 
-      {error ? (
-        <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{error}</Text>
-      ) : value ? (
-        <Text fontSize="11px" color="gray.500" mt={1}>Item selecionado</Text>
-      ) : null}
+      {error ? <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{error}</Text> : null}
     </Box>
   );
 }
