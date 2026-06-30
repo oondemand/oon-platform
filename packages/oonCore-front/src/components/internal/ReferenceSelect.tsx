@@ -18,7 +18,7 @@ export interface ReferenceSelectProps {
   onChange: (value: string) => void;
 }
 
-/** Seleção pesquisável para campos relacionados, com validação visual explícita. */
+/** Combobox pesquisável para campos relacionados, com seleção e validação acessíveis. */
 export function ReferenceSelect({
   field,
   inputId,
@@ -38,8 +38,10 @@ export function ReferenceSelect({
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [requested, setRequested] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const userEditedRef = useRef(false);
 
   const schemaQuery = useModelSchema(refModel);
@@ -61,7 +63,10 @@ export function ReferenceSelect({
   useEffect(() => {
     if (!open) return;
     const closeWhenOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setActiveIndex(-1);
+      }
     };
     document.addEventListener("mousedown", closeWhenOutside);
     return () => document.removeEventListener("mousedown", closeWhenOutside);
@@ -86,23 +91,49 @@ export function ReferenceSelect({
     setDisplayText(referenceOptionLabel(currentQuery.data, schema?.searchable));
   }, [currentQuery.data, schema?.searchable]);
 
-  const openList = () => {
-    setRequested(true);
-    setOpen(true);
-  };
-
-  const clear = () => {
-    userEditedRef.current = false;
-    setDisplayText("");
-    setFilterText("");
-    setDebouncedFilter("");
-    onChange("");
-    inputRef.current?.focus();
-  };
-
   const options = listQuery.data?.results ?? [];
   const listId = `oon-reference-${field}`;
   const resolvedInputId = inputId ?? `oon-reference-input-${field}`;
+  const activeOptionId = activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined;
+
+  const openList = () => {
+    setRequested(true);
+    setOpen(true);
+    setActiveIndex((current) => {
+      if (current >= 0) return current;
+      const selectedIndex = options.findIndex((row) => referenceId(row) === value);
+      return selectedIndex >= 0 ? selectedIndex : 0;
+    });
+  };
+
+  const closeList = () => {
+    setOpen(false);
+    setActiveIndex(-1);
+  };
+
+  const selectOption = (row: Record<string, unknown>) => {
+    const id = referenceId(row);
+    if (!id) return;
+    userEditedRef.current = false;
+    setDisplayText(referenceOptionLabel(row, schema?.searchable));
+    setFilterText("");
+    setDebouncedFilter("");
+    onChange(id);
+    setRequested(false);
+    closeList();
+    inputRef.current?.focus();
+  };
+
+  const moveActive = (direction: 1 | -1) => {
+    if (!open) openList();
+    if (!options.length) return;
+    setActiveIndex((current) => {
+      const start = current < 0 ? (direction === 1 ? -1 : 0) : current;
+      const next = (start + direction + options.length) % options.length;
+      window.setTimeout(() => optionRefs.current[next]?.scrollIntoView({ block: "nearest" }), 0);
+      return next;
+    });
+  };
 
   return (
     <Box ref={containerRef} position="relative">
@@ -112,14 +143,16 @@ export function ReferenceSelect({
         </Text>
       </label>
 
-      <Flex gap={2} align="center">
+      <Box position="relative">
         <Input
           id={resolvedInputId}
           ref={inputRef}
           size="sm"
           role="combobox"
+          aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}
+          aria-activedescendant={open ? activeOptionId : undefined}
           aria-autocomplete="list"
           aria-required={required}
           aria-invalid={invalid || undefined}
@@ -129,8 +162,9 @@ export function ReferenceSelect({
           borderColor={invalid ? "red.400" : "#DDE3E7"}
           boxShadow={invalid ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined}
           bg="white"
-          placeholder="Digite para filtrar"
+          placeholder="Selecione ou digite para pesquisar"
           value={displayText}
+          pr="42px"
           required={required && !value}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => {
@@ -138,82 +172,143 @@ export function ReferenceSelect({
             userEditedRef.current = true;
             setDisplayText(text);
             setFilterText(text);
+            setActiveIndex(0);
             onChange("");
             openList();
           }}
           onKeyDown={(event) => {
-            if (event.key === "ArrowDown") openList();
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              moveActive(1);
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              moveActive(-1);
+              return;
+            }
+            if (event.key === "Enter" && open && activeIndex >= 0 && options[activeIndex]) {
+              event.preventDefault();
+              selectOption(options[activeIndex]);
+              return;
+            }
             if (event.key === "Escape" && open) {
               event.preventDefault();
               event.stopPropagation();
-              setOpen(false);
+              closeList();
             }
           }}
           _focusVisible={{ borderColor: invalid ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${invalid ? "#E53E3E" : "#0474AF"}` }}
         />
 
-        <Button size="sm" variant="outline" type="button" flex="0 0 auto" minW="92px" borderRadius="8px" onClick={() => open ? setOpen(false) : openList()}>
-          {open ? "Fechar" : "Abrir lista"}
+        <Button
+          type="button"
+          variant="plain"
+          aria-label={open ? `Fechar lista de ${label}` : `Abrir lista de ${label}`}
+          aria-controls={listId}
+          aria-expanded={open}
+          position="absolute"
+          top="50%"
+          right="4px"
+          transform="translateY(-50%)"
+          minW="32px"
+          w="32px"
+          h="30px"
+          p={0}
+          borderRadius="6px"
+          color="#64727A"
+          _hover={{ bg: "#F1F4F5", color: "#24323A" }}
+          _focusVisible={{ outline: "2px solid", outlineColor: "brand.500", outlineOffset: "-2px" }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            if (open) closeList();
+            else openList();
+            inputRef.current?.focus();
+          }}
+        >
+          <Box
+            as="svg"
+            viewBox="0 0 20 20"
+            aria-hidden="true"
+            w="18px"
+            h="18px"
+            transition="transform 0.15s ease"
+            transform={open ? "rotate(180deg)" : "rotate(0deg)"}
+          >
+            <path d="M5.5 7.5 10 12l4.5-4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </Box>
         </Button>
 
-        {displayText || value ? (
-          <Button size="sm" variant="ghost" type="button" borderRadius="8px" onClick={clear}>Limpar</Button>
+        {open ? (
+          <Box
+            id={listId}
+            role="listbox"
+            position="absolute"
+            left={0}
+            right={0}
+            top="calc(100% + 4px)"
+            zIndex={30}
+            bg="white"
+            borderWidth="1px"
+            borderColor="#DDE3E7"
+            borderRadius="9px"
+            boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)"
+            maxH="260px"
+            overflowY="auto"
+            p={2}
+          >
+            {schemaQuery.isLoading || listQuery.isLoading ? (
+              <Flex align="center" gap={2} px={2} py={3}><Spinner size="sm" /><Text fontSize="sm">Carregando lista...</Text></Flex>
+            ) : schemaQuery.isError || listQuery.isError ? (
+              <Text fontSize="sm" color="red.600" px={2} py={3}>Não foi possível carregar os registros relacionados.</Text>
+            ) : options.length === 0 ? (
+              <Text fontSize="sm" color="gray.500" px={2} py={3}>Nenhum registro encontrado.</Text>
+            ) : (
+              <Stack gap={1}>
+                {options.map((row, index) => {
+                  const id = referenceId(row);
+                  if (!id) return null;
+                  const optionLabel = referenceOptionLabel(row, schema?.searchable);
+                  const active = index === activeIndex;
+                  const selected = id === value;
+                  return (
+                    <Button
+                      id={`${listId}-option-${index}`}
+                      ref={(element) => { optionRefs.current[index] = element; }}
+                      key={id}
+                      role="option"
+                      aria-selected={selected}
+                      size="sm"
+                      variant="ghost"
+                      colorPalette="brand"
+                      type="button"
+                      justifyContent="flex-start"
+                      whiteSpace="normal"
+                      textAlign="left"
+                      h="auto"
+                      py={2}
+                      borderRadius="7px"
+                      bg={active ? "brand.50" : selected ? "gray.100" : "transparent"}
+                      color={active ? "brand.700" : "inherit"}
+                      fontWeight={selected ? "600" : "400"}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectOption(row)}
+                    >
+                      {optionLabel}
+                    </Button>
+                  );
+                })}
+              </Stack>
+            )}
+          </Box>
         ) : null}
-      </Flex>
+      </Box>
 
       {error ? (
         <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{error}</Text>
       ) : value ? (
         <Text fontSize="11px" color="gray.500" mt={1}>Item selecionado</Text>
-      ) : null}
-
-      {open ? (
-        <Box id={listId} role="listbox" position="absolute" left={0} right={0} top="calc(100% + 4px)" zIndex={30} bg="white" borderWidth="1px" borderColor="#DDE3E7" borderRadius="9px" boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)" maxH="260px" overflowY="auto" p={2}>
-          {schemaQuery.isLoading || listQuery.isLoading ? (
-            <Flex align="center" gap={2} px={2} py={3}><Spinner size="sm" /><Text fontSize="sm">Carregando lista...</Text></Flex>
-          ) : schemaQuery.isError || listQuery.isError ? (
-            <Text fontSize="sm" color="red.600" px={2} py={3}>Não foi possível carregar os registros relacionados.</Text>
-          ) : options.length === 0 ? (
-            <Text fontSize="sm" color="gray.500" px={2} py={3}>Nenhum registro encontrado.</Text>
-          ) : (
-            <Stack gap={1}>
-              {options.map((row) => {
-                const id = referenceId(row);
-                if (!id) return null;
-                const optionLabel = referenceOptionLabel(row, schema?.searchable);
-                return (
-                  <Button
-                    key={id}
-                    role="option"
-                    aria-selected={id === value}
-                    size="sm"
-                    variant={id === value ? "subtle" : "ghost"}
-                    colorPalette="brand"
-                    type="button"
-                    justifyContent="flex-start"
-                    whiteSpace="normal"
-                    textAlign="left"
-                    h="auto"
-                    py={2}
-                    borderRadius="7px"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      userEditedRef.current = false;
-                      setDisplayText(optionLabel);
-                      setFilterText("");
-                      setDebouncedFilter("");
-                      onChange(id);
-                      setOpen(false);
-                      setRequested(false);
-                    }}
-                  >
-                    {optionLabel}
-                  </Button>
-                );
-              })}
-            </Stack>
-          )}
-        </Box>
       ) : null}
     </Box>
   );
