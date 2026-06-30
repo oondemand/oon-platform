@@ -12,6 +12,7 @@ import { ErrorState } from "../shell/ErrorState";
 export interface CoreCollectionProps {
   model: string;
   label?: string;
+  section?: string;
   mode?: CollectionMode;
   endpoint?: string;
   columns?: OonColumnDef[];
@@ -21,8 +22,7 @@ export interface CoreCollectionProps {
 
 type FormState = { open: false } | { open: true; row?: Record<string, unknown> };
 
-/** Coleção padrão: título operacional, datagrid denso e formulário em diálogo. */
-export function CoreCollection({ model, label, mode = "dynamic", endpoint, columns, form, importExport }: CoreCollectionProps) {
+export function CoreCollection({ model, label, section = "Coleção", mode = "dynamic", endpoint, columns, form, importExport }: CoreCollectionProps) {
   const needsSchema = mode !== "full" || !columns || !form || !endpoint;
   const schemaQuery = useModelSchema(needsSchema ? model : "");
   const schema = schemaQuery.data;
@@ -65,7 +65,7 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
     <Stack gap={5}>
       <Box>
         <Text fontSize="11px" fontWeight="700" color="brand.500" textTransform="uppercase" letterSpacing="0.08em" mb={1}>
-          Coleção
+          {section}
         </Text>
         <Heading size="lg" color="#24323A" letterSpacing="-0.02em">
           {title}
@@ -95,6 +95,7 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
       {formState.open ? (
         <DynamicForm
           title={formState.row ? `Editar ${title}` : `Novo ${title}`}
+          eyebrow={section}
           fields={resolvedForm}
           initialValues={formState.row}
           submitting={saveMutation.isPending}
