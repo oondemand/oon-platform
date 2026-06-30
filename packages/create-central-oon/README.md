@@ -2,14 +2,18 @@
 
 📖 **[Documentação completa → ooncoredoc.vercel.app](https://ooncoredoc.vercel.app)**
 
-Gerador de **Centrais Oon**. Cria, a partir do nome da Central, um `backend/` e
-um `frontend/` **mínimos** — só domínio e declaração — prontos para consumir o
-Core (`@oondemand/oon-core-back` e `@oondemand/oon-core-front`).
+Gerador de **Centrais Oon**. Cria, a partir do nome da Central, um `backend/` de domínio e um `frontend/` declarativo prontos para consumir o Core (`@oondemand/oon-core-back` e `@oondemand/oon-core-front`).
 
-Substitui os geradores legados `@oondemand/create-ooncore-back|front`, que
-copiavam o app inteiro. Aqui só nasce o esqueleto: nada de `server.js`,
-`app.js`, `db.js`, middlewares, Dockerfile, manifestos k8s à mão ou router
-manual — isso tudo vive no Core.
+Toda Central gerada nasce com o padrão visual e operacional consolidado na **Central Minexco**:
+
+- identidade visual Oon/CST com Poppins, azul `#0474AF` e fundo `#F8F9FA`;
+- menu lateral compacto, responsivo e agrupado por seções;
+- datagrids densos com busca, ordenação, paginação, badges e ações;
+- formulários em diálogo, duas colunas e validação detalhada por campo;
+- campos relacionados com seleção pesquisável;
+- esteiras horizontais com colunas `#E8ECEF` e cartões operacionais brancos.
+
+O padrão fica no `@oondemand/oon-core-front`; os templates funcionais apenas declaram domínio, coleções, documentos e esteiras. Assim, não é necessário copiar ou manter um frontend diferente para cada Central.
 
 ## Uso
 
@@ -24,15 +28,17 @@ Aliases: o binário também responde por `scaffold-central-oon`.
 
 ### Opções
 
-| Flag             | Efeito                                                         |
+| Flag             | Efeito                                                        |
 | ---------------- | ------------------------------------------------------------- |
-| `--template=<t>` | Template inicial (default: `basic`). Veja `--list`.           |
+| `--template=<t>` | Template funcional inicial (default: `basic`). Veja `--list`. |
 | `--here`         | Gera na pasta atual em vez de criar `<nome>/`.                |
 | `--force`        | Sobrescreve uma pasta existente não-vazia.                    |
-| `--no-install`   | Não roda `npm install` nos projetos gerados.                 |
+| `--no-install`   | Não roda `npm install` nos projetos gerados.                  |
 | `--list`         | Lista os templates e sai.                                     |
 
-## Templates
+## Templates funcionais
+
+Todos utilizam o mesmo frontend padrão Minexco.
 
 | Template              | O que gera                                                    |
 | --------------------- | ------------------------------------------------------------- |
@@ -49,24 +55,23 @@ Aliases: o binário também responde por `scaffold-central-oon`.
 ```txt
 <central>/
 ├── README.md
-├── backend/                 # consome @oondemand/oon-core-back
+├── backend/                  # consome @oondemand/oon-core-back
 │   ├── central.config.js     # identidade + módulos + paths de domínio
 │   ├── central.manifest.json # valores de deploy (render no Core)
 │   └── src/{models,validations,triggers,hooks,mappings,documents,
 │            pipelines,integrations,routes,controllers,services}/
-└── frontend/                # consome @oondemand/oon-core-front
-    ├── central.ui.json       # declaração das telas (coleções/esteiras/docs)
+└── frontend/                 # consome o frontend padrão Minexco do OonCore
+    ├── central.ui.json       # menu e telas (coleções/esteiras/documentos)
     └── src/
-        ├── main.tsx          # só `startFromManifest(manifest, { apiBaseUrl })`
+        ├── main.tsx          # startFromManifest(manifest, { apiBaseUrl })
         └── {collections,documents,pipelines,dashboards,overrides}/
 ```
 
 ## Próximos passos após gerar
 
 ```bash
-cd <central>/backend  && cp .env.example .env && npm run dev   # expõe /core/metadata
-cd ../frontend        && cp .env.example .env && npm run dev   # renderiza pela metadata
+cd <central>/backend  && cp .env.example .env && npm run dev
+cd ../frontend        && cp .env.example .env && npm run dev
 ```
 
-Evoluir = criar models em `backend/src/models` e declarar telas em
-`frontend/central.ui.json`. Grid, form, rotas e menu são montados pelo Core.
+Evoluir a Central significa criar models em `backend/src/models` e declarar as telas em `frontend/central.ui.json`. Menu, rotas, datagrids, formulários e esteiras são montados pelo Core mantendo o padrão Minexco.
