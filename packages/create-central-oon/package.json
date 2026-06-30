@@ -6,7 +6,7 @@
     "url": "git+https://github.com/oondemand/oon-platform.git",
     "directory": "packages/create-central-oon"
   },
-  "description": "Gerador de Centrais Oon: cria backend + frontend mínimos (só domínio + declaração) prontos para consumir @oondemand/oon-core-back e @oondemand/oon-core-front.",
+  "description": "Gerador de Centrais Oon com backend declarativo e frontend padrão Central Minexco: menu, datagrids, formulários e esteiras.",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"
