@@ -69,12 +69,7 @@ export function ReferenceSelect({
 
   const listQuery = useQuery({
     queryKey: ["oon", "reference-options", refModel, basePath, debouncedFilter],
-    queryFn: () =>
-      resource.list({
-        pageIndex: 0,
-        pageSize: 100,
-        searchTerm: debouncedFilter || undefined,
-      }),
+    queryFn: () => resource.list({ pageIndex: 0, pageSize: 100, searchTerm: debouncedFilter || undefined }),
     enabled: !!schema && requested,
     staleTime: 30_000,
   });
@@ -111,10 +106,11 @@ export function ReferenceSelect({
 
   return (
     <Box ref={containerRef} position="relative">
-      <Text as="label" htmlFor={resolvedInputId} fontSize="12px" mb={1} fontWeight="600" color="#46545C">
-        {label}
-        {required ? <Text as="span" color="red.500"> *</Text> : null}
-      </Text>
+      <label htmlFor={resolvedInputId}>
+        <Text as="span" display="block" fontSize="12px" mb={1} fontWeight="600" color="#46545C">
+          {label}{required ? <Text as="span" color="red.500"> *</Text> : null}
+        </Text>
+      </label>
 
       <Flex gap={2} align="center">
         <Input
@@ -156,69 +152,29 @@ export function ReferenceSelect({
           _focusVisible={{ borderColor: invalid ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${invalid ? "#E53E3E" : "#0474AF"}` }}
         />
 
-        <Button
-          size="sm"
-          variant="outline"
-          type="button"
-          flex="0 0 auto"
-          minW="92px"
-          borderRadius="8px"
-          onClick={() => {
-            if (open) setOpen(false);
-            else openList();
-          }}
-        >
+        <Button size="sm" variant="outline" type="button" flex="0 0 auto" minW="92px" borderRadius="8px" onClick={() => open ? setOpen(false) : openList()}>
           {open ? "Fechar" : "Abrir lista"}
         </Button>
 
         {displayText || value ? (
-          <Button size="sm" variant="ghost" type="button" borderRadius="8px" onClick={clear}>
-            Limpar
-          </Button>
+          <Button size="sm" variant="ghost" type="button" borderRadius="8px" onClick={clear}>Limpar</Button>
         ) : null}
       </Flex>
 
       {error ? (
-        <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>
-          {error}
-        </Text>
+        <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>{error}</Text>
       ) : value ? (
-        <Text fontSize="11px" color="gray.500" mt={1}>
-          Item selecionado
-        </Text>
+        <Text fontSize="11px" color="gray.500" mt={1}>Item selecionado</Text>
       ) : null}
 
       {open ? (
-        <Box
-          id={listId}
-          role="listbox"
-          position="absolute"
-          left={0}
-          right={0}
-          top="calc(100% + 4px)"
-          zIndex={30}
-          bg="white"
-          borderWidth="1px"
-          borderColor="#DDE3E7"
-          borderRadius="9px"
-          boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)"
-          maxH="260px"
-          overflowY="auto"
-          p={2}
-        >
+        <Box id={listId} role="listbox" position="absolute" left={0} right={0} top="calc(100% + 4px)" zIndex={30} bg="white" borderWidth="1px" borderColor="#DDE3E7" borderRadius="9px" boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)" maxH="260px" overflowY="auto" p={2}>
           {schemaQuery.isLoading || listQuery.isLoading ? (
-            <Flex align="center" gap={2} px={2} py={3}>
-              <Spinner size="sm" />
-              <Text fontSize="sm">Carregando lista...</Text>
-            </Flex>
+            <Flex align="center" gap={2} px={2} py={3}><Spinner size="sm" /><Text fontSize="sm">Carregando lista...</Text></Flex>
           ) : schemaQuery.isError || listQuery.isError ? (
-            <Text fontSize="sm" color="red.600" px={2} py={3}>
-              Não foi possível carregar os registros relacionados.
-            </Text>
+            <Text fontSize="sm" color="red.600" px={2} py={3}>Não foi possível carregar os registros relacionados.</Text>
           ) : options.length === 0 ? (
-            <Text fontSize="sm" color="gray.500" px={2} py={3}>
-              Nenhum registro encontrado.
-            </Text>
+            <Text fontSize="sm" color="gray.500" px={2} py={3}>Nenhum registro encontrado.</Text>
           ) : (
             <Stack gap={1}>
               {options.map((row) => {
