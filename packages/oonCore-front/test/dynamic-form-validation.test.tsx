@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ComponentProps } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
@@ -27,7 +28,7 @@ beforeAll(() => {
   }
 });
 
-function renderForm(props: Partial<React.ComponentProps<typeof DynamicForm>> = {}) {
+function renderForm(props: Partial<ComponentProps<typeof DynamicForm>> = {}) {
   const onSubmit = vi.fn();
   render(
     <ChakraProvider value={defaultSystem}>
