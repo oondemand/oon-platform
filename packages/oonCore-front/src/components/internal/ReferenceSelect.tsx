@@ -6,6 +6,8 @@ import { initialReferenceLabel, referenceId, referenceOptionLabel } from "./refe
 
 export interface ReferenceSelectProps {
   field: string;
+  inputId?: string;
+  errorId?: string;
   label: string;
   refModel: string;
   value: string;
@@ -19,6 +21,8 @@ export interface ReferenceSelectProps {
 /** Seleção pesquisável para campos relacionados, com validação visual explícita. */
 export function ReferenceSelect({
   field,
+  inputId,
+  errorId,
   label,
   refModel,
   value,
@@ -103,26 +107,31 @@ export function ReferenceSelect({
 
   const options = listQuery.data?.results ?? [];
   const listId = `oon-reference-${field}`;
+  const resolvedInputId = inputId ?? `oon-reference-input-${field}`;
 
   return (
     <Box ref={containerRef} position="relative">
-      <Text fontSize="12px" mb={1} fontWeight="600" color="#46545C">
+      <Text as="label" htmlFor={resolvedInputId} fontSize="12px" mb={1} fontWeight="600" color="#46545C">
         {label}
         {required ? <Text as="span" color="red.500"> *</Text> : null}
       </Text>
 
       <Flex gap={2} align="center">
         <Input
+          id={resolvedInputId}
           ref={inputRef}
           size="sm"
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-invalid={invalid}
+          aria-required={required}
+          aria-invalid={invalid || undefined}
+          aria-describedby={error ? errorId : undefined}
           autoComplete="off"
           borderRadius="8px"
           borderColor={invalid ? "red.400" : "#DDE3E7"}
+          boxShadow={invalid ? "0 0 0 3px rgba(220, 38, 38, 0.10)" : undefined}
           bg="white"
           placeholder="Digite para filtrar"
           value={displayText}
@@ -138,7 +147,11 @@ export function ReferenceSelect({
           }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") openList();
-            if (event.key === "Escape") setOpen(false);
+            if (event.key === "Escape" && open) {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            }
           }}
           _focusVisible={{ borderColor: invalid ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${invalid ? "#E53E3E" : "#0474AF"}` }}
         />
@@ -166,7 +179,7 @@ export function ReferenceSelect({
       </Flex>
 
       {error ? (
-        <Text fontSize="11px" color="red.600" mt={1}>
+        <Text id={errorId} role="alert" fontSize="11px" color="red.600" mt={1}>
           {error}
         </Text>
       ) : value ? (
