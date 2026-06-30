@@ -9,11 +9,10 @@ export function isEditableField(meta: FieldMeta): boolean {
 
 export function fieldLabel(meta: { name: string; label?: string }): string {
   if (meta.label) return meta.label;
-  // humaniza: camelCase/snake_case -> "Camel Case".
   return meta.name
     .replace(/_/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase());
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 /** Deriva colunas de grid a partir da metadata da model (modo dynamic/minimal). */
@@ -21,18 +20,45 @@ export function columnsFromMeta(fields: FieldMeta[]): OonColumnDef[] {
   return fields
     .filter(isEditableField)
     .slice(0, 8)
-    .map((f) => ({ field: f.name, label: fieldLabel(f), kind: f.kind, sortable: true }));
+    .map((field) => ({ field: field.name, label: fieldLabel(field), kind: field.kind, sortable: true }));
+}
+
+function formRequired(field: FieldMeta): boolean {
+  const raw = field as unknown as Record<string, unknown>;
+  const options = raw.options;
+  const validation = raw.validation;
+  const schema = raw.schema;
+
+  return Boolean(
+    field.required ||
+      (options && !Array.isArray(options) && typeof options === "object" && (options as Record<string, unknown>).required) ||
+      (validation && typeof validation === "object" && (validation as Record<string, unknown>).required) ||
+      (schema && typeof schema === "object" && (schema as Record<string, unknown>).required)
+  );
+}
+
+function formOptions(field: FieldMeta): string[] | undefined {
+  const rawOptions = (field as unknown as Record<string, unknown>).options;
+  if (Array.isArray(rawOptions)) return rawOptions.filter((value): value is string => typeof value === "string");
+  if (!rawOptions || typeof rawOptions !== "object") return undefined;
+
+  const options = rawOptions as Record<string, unknown>;
+  const candidates = [options.values, options.enum, options.options];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate.filter((value): value is string => typeof value === "string");
+  }
+  return undefined;
 }
 
 /** Deriva campos de formulário a partir da metadata da model. */
 export function formFieldsFromMeta(fields: FieldMeta[]): OonFormFieldDef[] {
-  return fields.filter(isEditableField).map((f) => ({
-    field: f.name,
-    label: fieldLabel(f),
-    kind: f.kind,
-    required: f.required,
-    options: f.options,
-    ref: f.ref,
+  return fields.filter(isEditableField).map((field) => ({
+    field: field.name,
+    label: fieldLabel(field),
+    kind: field.kind,
+    required: formRequired(field),
+    options: formOptions(field),
+    ref: field.ref,
   }));
 }
 
@@ -52,10 +78,9 @@ export function formatCell(value: unknown, kind?: FieldKind): string {
     case "currencyConverted":
       return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
     case "ref":
-      // ref populada vem como objeto { _id, nome/label } ou string id.
       if (value && typeof value === "object") {
-        const obj = value as Record<string, unknown>;
-        return String(obj.nome ?? obj.label ?? obj.descricao ?? obj._id ?? "—");
+        const object = value as Record<string, unknown>;
+        return String(object.nome ?? object.label ?? object.descricao ?? object._id ?? "—");
       }
       return String(value);
     default:
