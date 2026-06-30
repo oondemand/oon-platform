@@ -33,7 +33,7 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
   const resource = useOonResource(basePath);
   const queryClient = useQueryClient();
   const [formState, setFormState] = useState<FormState>({ open: false });
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<unknown>(null);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["oon", "list", basePath] });
 
@@ -48,7 +48,7 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
       setFormError(null);
       invalidate();
     },
-    onError: (err) => setFormError(err.message),
+    onError: (error) => setFormError(error),
   });
 
   const deleteMutation = useMutation({
@@ -79,8 +79,14 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
         resource={resource}
         resourceKey={basePath}
         columns={resolvedColumns}
-        onCreate={() => setFormState({ open: true })}
-        onEdit={(row) => setFormState({ open: true, row })}
+        onCreate={() => {
+          setFormError(null);
+          setFormState({ open: true });
+        }}
+        onEdit={(row) => {
+          setFormError(null);
+          setFormState({ open: true, row });
+        }}
         onDelete={(row) => {
           if (window.confirm("Excluir este registro?")) deleteMutation.mutate(row);
         }}
@@ -93,7 +99,11 @@ export function CoreCollection({ model, label, mode = "dynamic", endpoint, colum
           initialValues={formState.row}
           submitting={saveMutation.isPending}
           error={formError}
-          onSubmit={(values) => saveMutation.mutate(values)}
+          onSubmit={(values) => {
+            setFormError(null);
+            saveMutation.mutate(values);
+          }}
+          onFieldChange={() => setFormError(null)}
           onCancel={() => {
             setFormState({ open: false });
             setFormError(null);
