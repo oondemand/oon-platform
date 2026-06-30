@@ -51,6 +51,8 @@ export interface ManifestRuntime {
   meusAppsUrl?: string;
   assistantBaseUrl?: string;
   versionPrefix?: string;
+  /** Token local enviado ao backend somente quando o consumidor o configurar. */
+  devToken?: string;
 }
 
 /** Converte o manifesto declarativo + runtime em config do Core. */
@@ -108,7 +110,7 @@ export function manifestToConfig(manifest: CentralUiManifest, runtime: ManifestR
       assistantBaseUrl: runtime.assistantBaseUrl,
       versionPrefix: runtime.versionPrefix ?? "",
     },
-    auth: { mode: "bearer", tokenParam: "code" },
+    auth: { mode: "bearer", tokenParam: "code", devToken: runtime.devToken },
     security: {
       enableRouteGuard: true,
       enablePermissionGate: true,
