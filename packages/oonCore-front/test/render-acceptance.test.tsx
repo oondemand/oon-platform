@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { ReactNode } from "react";
 import { describe, it, expect, beforeAll } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -95,7 +96,7 @@ beforeAll(() => {
   }
 });
 
-function renderWithProviders(node: React.ReactNode) {
+function renderWithProviders(node: ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
@@ -140,11 +141,11 @@ describe("CorePipeline — ticket em formulário modal", () => {
     fireEvent.click(ticket);
 
     expect(await screen.findByRole("dialog", { name: "Editar viagem" })).toBeTruthy();
-    expect(screen.getByLabelText(/Código/)).toHaveValue("VIA-001");
-    expect(screen.getByLabelText(/Origem/)).toHaveValue("São Paulo");
-    expect(screen.getByLabelText(/Destino/)).toHaveValue("Campinas");
-    expect(screen.getByLabelText(/Capacidade total/)).toHaveValue(44);
-    expect(screen.getByLabelText(/Observações/)).toHaveValue("Embarque no terminal central");
-    expect(screen.getByLabelText(/Etapa/)).toHaveValue("planejamento");
+    expect((screen.getByLabelText(/Código/) as HTMLInputElement).value).toBe("VIA-001");
+    expect((screen.getByLabelText(/Origem/) as HTMLInputElement).value).toBe("São Paulo");
+    expect((screen.getByLabelText(/Destino/) as HTMLInputElement).value).toBe("Campinas");
+    expect((screen.getByLabelText(/Capacidade total/) as HTMLInputElement).value).toBe("44");
+    expect((screen.getByLabelText(/Observações/) as HTMLTextAreaElement).value).toBe("Embarque no terminal central");
+    expect((screen.getByLabelText(/Etapa/) as HTMLSelectElement).value).toBe("planejamento");
   });
 });
