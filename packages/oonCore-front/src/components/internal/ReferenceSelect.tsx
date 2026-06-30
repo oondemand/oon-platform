@@ -11,17 +11,12 @@ export interface ReferenceSelectProps {
   value: string;
   initialValue?: unknown;
   required?: boolean;
+  invalid?: boolean;
+  error?: string;
   onChange: (value: string) => void;
 }
 
-/**
- * Caixa de seleção genérica para campos `ref`.
- *
- * - "Abrir lista" carrega os registros relacionados;
- * - digitar filtra no backend usando `searchTerm`;
- * - a opção salva sempre o `_id`, nunca o texto exibido;
- * - ao editar, busca o registro atual quando o backend devolve só o ObjectId.
- */
+/** Seleção pesquisável para campos relacionados, com validação visual explícita. */
 export function ReferenceSelect({
   field,
   label,
@@ -29,6 +24,8 @@ export function ReferenceSelect({
   value,
   initialValue,
   required,
+  invalid,
+  error,
   onChange,
 }: ReferenceSelectProps) {
   const initialLabel = useMemo(() => initialReferenceLabel(initialValue), [initialValue]);
@@ -109,9 +106,9 @@ export function ReferenceSelect({
 
   return (
     <Box ref={containerRef} position="relative">
-      <Text fontSize="sm" mb={1} fontWeight="medium">
+      <Text fontSize="12px" mb={1} fontWeight="600" color="#46545C">
         {label}
-        {required ? " *" : ""}
+        {required ? <Text as="span" color="red.500"> *</Text> : null}
       </Text>
 
       <Flex gap={2} align="center">
@@ -122,7 +119,11 @@ export function ReferenceSelect({
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-invalid={invalid}
           autoComplete="off"
+          borderRadius="8px"
+          borderColor={invalid ? "red.400" : "#DDE3E7"}
+          bg="white"
           placeholder="Digite para filtrar"
           value={displayText}
           required={required && !value}
@@ -139,13 +140,16 @@ export function ReferenceSelect({
             if (event.key === "ArrowDown") openList();
             if (event.key === "Escape") setOpen(false);
           }}
+          _focusVisible={{ borderColor: invalid ? "red.500" : "brand.500", boxShadow: `0 0 0 1px ${invalid ? "#E53E3E" : "#0474AF"}` }}
         />
 
         <Button
           size="sm"
           variant="outline"
           type="button"
+          flex="0 0 auto"
           minW="92px"
+          borderRadius="8px"
           onClick={() => {
             if (open) setOpen(false);
             else openList();
@@ -155,14 +159,18 @@ export function ReferenceSelect({
         </Button>
 
         {displayText || value ? (
-          <Button size="sm" variant="ghost" type="button" onClick={clear}>
+          <Button size="sm" variant="ghost" type="button" borderRadius="8px" onClick={clear}>
             Limpar
           </Button>
         ) : null}
       </Flex>
 
-      {value ? (
-        <Text fontSize="xs" color="gray.500" mt={1}>
+      {error ? (
+        <Text fontSize="11px" color="red.600" mt={1}>
+          {error}
+        </Text>
+      ) : value ? (
+        <Text fontSize="11px" color="gray.500" mt={1}>
           Item selecionado
         </Text>
       ) : null}
@@ -175,12 +183,12 @@ export function ReferenceSelect({
           left={0}
           right={0}
           top="calc(100% + 4px)"
-          zIndex={20}
+          zIndex={30}
           bg="white"
           borderWidth="1px"
-          borderColor="gray.200"
-          borderRadius="md"
-          boxShadow="lg"
+          borderColor="#DDE3E7"
+          borderRadius="9px"
+          boxShadow="0 12px 30px rgba(7, 38, 46, 0.14)"
           maxH="260px"
           overflowY="auto"
           p={2}
@@ -211,12 +219,14 @@ export function ReferenceSelect({
                     aria-selected={id === value}
                     size="sm"
                     variant={id === value ? "subtle" : "ghost"}
+                    colorPalette="brand"
                     type="button"
                     justifyContent="flex-start"
                     whiteSpace="normal"
                     textAlign="left"
                     h="auto"
                     py={2}
+                    borderRadius="7px"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
                       userEditedRef.current = false;
