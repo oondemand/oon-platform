@@ -99,7 +99,7 @@ describe("CoreCollection — render dinâmico da Cotacao", () => {
     // Valor formatado como moeda pela célula do Core.
     expect(screen.getByText(/R\$\s?1\.500,00/)).toBeTruthy();
 
-    // Ação de criar registro.
-    expect(screen.getByText("Novo")).toBeTruthy();
+    // Ação de criar registro. Aceita o prefixo visual "+" do padrão Minexco.
+    expect(screen.getByRole("button", { name: /Novo/ })).toBeTruthy();
   });
 });
