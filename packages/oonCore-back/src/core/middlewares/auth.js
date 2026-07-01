@@ -1,32 +1,44 @@
 const axios = require("axios");
-const Sistema = require("../models/Sistema");
 const Helpers = require("../utils/helpers");
 const ctx = require("../context");
 
 /**
- * Verificador padrão: delega ao Meus Apps (comportamento histórico do CST).
+ * Verificador padrão: delega a autenticação para a Central de Ativações.
+ * O código identifica a aplicação e é carregado exclusivamente do ambiente do
+ * backend, evitando que o cliente escolha o app em que deseja se autenticar.
  * Pode ser sobrescrito via `central.config.js -> auth.verifyToken`.
  */
 async function defaultVerifyToken(token) {
-  const sistema = await Sistema.findOne().catch(() => null);
   const baseUrl = process.env.MEUS_APPS_BACKEND_URL;
+  const appCode =
+    process.env.APP_CODE || process.env.APP_CODIGO || process.env.APP_KEY;
+
   if (!baseUrl) {
     const err = new Error("MEUS_APPS_BACKEND_URL não configurada.");
     err.statusCode = 401;
     throw err;
   }
 
-  const response = await axios.get(
-    `${baseUrl}/auth/autenticar-aplicativo/`,
-    { headers: { Authorization: `Bearer ${token}`, origin: sistema?.appKey } }
-  );
+  if (!appCode) {
+    const err = new Error("APP_CODE não configurada no backend.");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const response = await axios.get(`${baseUrl}/auth/validar-token`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "x-app-code": appCode,
+    },
+  });
 
   const data = response.data.usuario;
   return {
+    ...data,
     tipo:
-      data.aplicativo.tipoAcesso === "master" ? "admin" : data.aplicativo.tipoAcesso,
-    nome: data.nome,
-    email: data.email,
+      data.tipo === "master" || data.perfil === "administrador"
+        ? "admin"
+        : data.tipo || data.perfil,
   };
 }
 
@@ -56,7 +68,7 @@ const authMiddleware = async (req, res, next) => {
     return Helpers.sendErrorResponse({
       res,
       message: "Token inválido ou erro na autenticação.",
-      statusCode: error.statusCode || 401,
+      statusCode: error.statusCode || error.response?.status || 401,
     });
   }
 };
