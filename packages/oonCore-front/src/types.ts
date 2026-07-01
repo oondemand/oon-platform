@@ -155,6 +155,12 @@ export interface OonAuthConfig {
   loginUrl?: string;
   /** Nome do query param que carrega o token na volta do SSO. Default: "code". */
   tokenParam?: string;
+  /**
+   * Token usado somente no desenvolvimento local. Quando informado, tem
+   * prioridade sobre um token antigo do storage, é persistido e validado no
+   * backend normalmente antes de qualquer redirecionamento.
+   */
+  devToken?: string;
 }
 
 export interface OonSecurityConfig {

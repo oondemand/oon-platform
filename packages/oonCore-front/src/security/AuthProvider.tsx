@@ -25,14 +25,17 @@ export interface AuthProviderProps {
 
 /**
  * Provider de autenticação do Core. Fluxo (Seção 2.4 do back / 6.2 da doc):
- *  1. captura token do ?code= e guarda no tokenStorage;
- *  2. valida em GET /auth/validar-token e resolve `usuario`;
- *  3. sem token/ inválido => redireciona para o login externo.
+ *  1. captura token do ?code= ou usa o token local de desenvolvimento;
+ *  2. persiste o token selecionado no tokenStorage;
+ *  3. valida em GET /auth/validar-token e resolve `usuario`;
+ *  4. somente sem token ou com token inválido redireciona para o login externo.
  *
- * Backend continua sendo a autoridade final — o RBAC do front é só UX.
+ * Backend continua sendo a autoridade final — inclusive no desenvolvimento.
+ * O RBAC do front é só UX.
  */
 export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthProviderProps) {
   const tokenParam = auth?.tokenParam ?? "code";
+  const devToken = auth?.devToken?.trim() || null;
   const [user, setUser] = useState<OonUser | null>(null);
   const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
 
@@ -54,9 +57,14 @@ export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthPr
     let active = true;
 
     const incoming = captureTokenFromUrl(tokenParam);
-    if (incoming) storage.set(incoming);
+    const stored = storage.get();
+    // SSO recebido pela URL sempre vence. Em desenvolvimento, o token
+    // configurado vence um valor antigo do storage para evitar redirects por
+    // sessão local obsoleta. Fora disso, reutilizamos a sessão persistida.
+    const token = incoming ?? devToken ?? stored;
 
-    const token = storage.get();
+    if (token && token !== stored) storage.set(token);
+
     if (!token) {
       redirectToLogin();
       return;
@@ -78,7 +86,7 @@ export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthPr
     return () => {
       active = false;
     };
-  }, [http, storage, tokenParam, redirectToLogin]);
+  }, [http, storage, tokenParam, devToken, redirectToLogin]);
 
   const roles = user?.tipo ? [user.tipo] : [];
 
