@@ -9,4 +9,7 @@ import manifest from "../central.ui.json";
 startFromManifest(manifest, {
   apiBaseUrl: import.meta.env.VITE_API_URL ?? "http://localhost:4000",
   meusAppsUrl: import.meta.env.VITE_MEUS_APPS_URL,
+  // O valor só entra no bundle servido pelo Vite em modo de desenvolvimento.
+  // O backend continua validando se ele coincide com DEV_TOKEN.
+  devToken: import.meta.env.DEV ? (import.meta.env.VITE_DEV_TOKEN ?? "dev-local") : undefined,
 });
