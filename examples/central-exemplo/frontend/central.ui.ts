@@ -27,6 +27,7 @@ export const appConfig: OonCoreFrontConfig = {
   auth: {
     mode: "bearer",
     tokenParam: "code",
+    devToken: import.meta.env.DEV ? (import.meta.env.VITE_DEV_TOKEN ?? "dev-local") : undefined,
   },
   security: {
     enableRouteGuard: true,

@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from "react-router-dom";
+import { Navigate, createBrowserRouter, type RouteObject } from "react-router-dom";
 import type { OonAppConfig, OonMenuItem, OonRoute, OonSecurityConfig } from "../types";
 import { AuthenticatedLayout } from "../shell/AuthenticatedLayout";
 import { RouteGuard } from "../security/RouteGuard";
@@ -10,11 +10,7 @@ export interface RouterInput {
   security?: OonSecurityConfig;
 }
 
-/**
- * Constrói o router a partir do registry resolvido (rotas dos módulos/views).
- * Rotas privadas ficam sob o layout autenticado e passam pelo RouteGuard;
- * rotas `public: true` ficam fora do layout.
- */
+/** Constrói o router e garante uma entrada válida mesmo sem dashboard explícito. */
 export function createOonRouter({ app, menu, routes, security }: RouterInput) {
   const guardEnabled = security?.enableRouteGuard !== false;
 
@@ -22,13 +18,17 @@ export function createOonRouter({ app, menu, routes, security }: RouterInput) {
     .filter((r) => r.public)
     .map((r) => ({ path: r.path, element: r.element }));
 
-  const privateRoutes: RouteObject[] = routes
-    .filter((r) => !r.public)
-    .map((r) => {
-      const element = guardEnabled ? <RouteGuard permission={r.permissions}>{r.element}</RouteGuard> : r.element;
-      // Rota raiz vira index route; demais usam path relativo ao layout.
-      return r.path === "/" ? { index: true, element } : { path: r.path.replace(/^\//, ""), element };
-    });
+  const privateSource = routes.filter((r) => !r.public);
+  const privateRoutes: RouteObject[] = privateSource.map((r) => {
+    const element = guardEnabled ? <RouteGuard permission={r.permissions}>{r.element}</RouteGuard> : r.element;
+    return r.path === "/" ? { index: true, element } : { path: r.path.replace(/^\//, ""), element };
+  });
+
+  const hasIndexRoute = privateSource.some((route) => route.path === "/");
+  const firstRoute = privateSource.find((route) => route.path !== "/");
+  if (!hasIndexRoute && firstRoute) {
+    privateRoutes.unshift({ index: true, element: <Navigate to={firstRoute.path} replace /> });
+  }
 
   const tree: RouteObject[] = [
     ...publicRoutes,

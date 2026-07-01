@@ -50,7 +50,23 @@ jobs:
         run: npm run build -w @oondemand/oon-core-front
 
       - name: Test core-front
-        run: npm test -w @oondemand/oon-core-front
+        id: test_front
+        continue-on-error: true
+        run: npm test -w @oondemand/oon-core-front > test-front.log 2>&1
+
+      - name: Upload core-front test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-front-test-log
+          path: test-front.log
+          if-no-files-found: error
+
+      - name: Fail on core-front test error
+        if: steps.test_front.outcome == 'failure'
+        run: |
+          cat test-front.log
+          exit 1
 
       - name: Test core-back
         run: npm test -w @oondemand/oon-core-back

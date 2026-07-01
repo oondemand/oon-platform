@@ -2,34 +2,62 @@ import { createSystem, defaultConfig, defineConfig, mergeConfigs } from "@chakra
 import type { OonCoreFrontConfig } from "../types";
 
 /**
- * Paleta `brand` oondemand (portada de cst-multimoedas-frontend/styles/theming.js).
- * É o que dá à Central gerada o mesmo visual do projeto raiz: azul oondemand no
- * sidebar, estados ativos, botões e acentos — em vez do azul padrão do Chakra.
+ * Identidade visual padrão das Centrais Oon, consolidada a partir da Central
+ * Minexco/CST: azul operacional, superfícies claras, tipografia Poppins e alta
+ * densidade de informação.
  */
 export const brandColors = {
   brand: {
-    25: { value: "#F5FBFF" },
-    50: { value: "#F0F7FF" },
-    75: { value: "#E6F2FF" },
-    100: { value: "#C7E3FF" },
-    200: { value: "#6CBCE8" },
+    25: { value: "#F8FCFF" },
+    50: { value: "#EEF8FD" },
+    75: { value: "#E2F3FB" },
+    100: { value: "#C7E8F7" },
+    200: { value: "#82C8E8" },
     300: { value: "#3FA6E0" },
     350: { value: "#0F8DD0" },
     400: { value: "#0580B9" },
     500: { value: "#0474AF" },
     600: { value: "#036491" },
     700: { value: "#014364" },
-    800: { value: "#034167" },
-    850: { value: "#021D42" },
-    900: { value: "#011225" },
+    800: { value: "#073A52" },
+    850: { value: "#082F3F" },
+    900: { value: "#07262E" },
   },
 } as const;
 
-/** Config base do Core: paleta brand + `colorPalette` default = brand. */
 const oonThemeConfig = defineConfig({
+  globalCss: {
+    "html, body, #root": {
+      minHeight: "100%",
+    },
+    body: {
+      margin: 0,
+      bg: "#F8F9FA",
+      color: "#24323A",
+      fontFamily: "Poppins, Inter, system-ui, sans-serif",
+      fontSize: "14px",
+    },
+    "button, input, select, textarea": {
+      fontFamily: "inherit",
+    },
+    "::selection": {
+      bg: "#C7E8F7",
+      color: "#07262E",
+    },
+  },
   theme: {
     tokens: {
       colors: brandColors,
+      fonts: {
+        body: { value: "Poppins, Inter, system-ui, sans-serif" },
+        heading: { value: "Poppins, Inter, system-ui, sans-serif" },
+      },
+      radii: {
+        oon: { value: "10px" },
+      },
+      shadows: {
+        oon: { value: "0 8px 24px rgba(7, 38, 46, 0.08)" },
+      },
     },
     semanticTokens: {
       colors: {
@@ -48,9 +76,8 @@ const oonThemeConfig = defineConfig({
 });
 
 /**
- * Constrói o `system` do Chakra para o Core. Parte do `defaultConfig`, aplica a
- * identidade oondemand e, por último, mescla qualquer override vindo de
- * `config.theme` (uma Central pode trocar a paleta sem reescrever o shell).
+ * Constrói o system do Chakra. O padrão Minexco é aplicado primeiro e pode ser
+ * sobrescrito por uma identidade específica da Central sem reescrever o shell.
  */
 export function createOonSystem(themeOverride?: OonCoreFrontConfig["theme"]) {
   const base = mergeConfigs(defaultConfig, oonThemeConfig);
@@ -60,5 +87,4 @@ export function createOonSystem(themeOverride?: OonCoreFrontConfig["theme"]) {
   return createSystem(config);
 }
 
-/** System pronto com a identidade padrão (sem overrides). */
 export const oonSystem = createOonSystem();
