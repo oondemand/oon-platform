@@ -4,6 +4,8 @@
   "IMAGE": "ghcr.io/oondemand/__SLUG__-backend",
   "IMAGE_TAG": "latest",
   "HOST": "__SLUG__.oondemand.com",
+  "CENTRAL_ATIVACAO_URL": "https://central-ativacao.example.com",
+  "APP_CODE": "__SLUG__",
   "REPLICAS": "1",
   "HPA_MIN": "1",
   "HPA_MAX": "3"
