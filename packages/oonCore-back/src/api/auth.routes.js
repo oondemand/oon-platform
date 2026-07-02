@@ -38,7 +38,7 @@ router.post(
   "/autenticar",
   asyncHandler(async (req, res) => {
     const authorization = readBasicAuthorization(req);
-    const baseUrl = getBaseUrl();
+    const baseUrl = getBaseUrl(req);
     const appCode = getAppCode();
 
     try {
