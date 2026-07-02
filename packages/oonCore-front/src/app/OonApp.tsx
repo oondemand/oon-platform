@@ -7,14 +7,20 @@ import { OonProviders } from "./OonProviders";
 import { resolveRegistry } from "./moduleRegistry";
 import { createOonRouter } from "./createOonRouter";
 
+function localLoginUrl(): string {
+  const current = `${window.location.pathname}${window.location.search}`;
+  if (window.location.pathname === "/login") return "/login";
+  return `/login?redirect=${encodeURIComponent(current)}`;
+}
+
 /**
- * Raiz da aplicação Core. Cria o cliente REST (com token storage + 401),
- * resolve o registry de rotas/menu e monta providers + router.
+ * Raiz da aplicação Core. Cria o cliente REST, resolve rotas/menu e monta os
+ * providers. Respostas 401 seguem para o login; 403 é tratado pelo AuthProvider.
  */
 export function OonApp({ config }: { config: OonCoreFrontConfig }) {
   const { http, storage, router } = useMemo(() => {
     const storage = createTokenStorage(config.app.id);
-    const loginUrl = config.auth?.loginUrl ?? config.api.meusAppsUrl;
+    const externalLoginUrl = config.auth?.loginUrl ?? config.api.meusAppsUrl;
 
     const http = createRestClient({
       api: config.api,
@@ -22,12 +28,20 @@ export function OonApp({ config }: { config: OonCoreFrontConfig }) {
       getToken: () => storage.get(),
       onUnauthorized: () => {
         storage.clear();
-        if (loginUrl) window.location.href = loginUrl;
+        const destination = externalLoginUrl || localLoginUrl();
+        if (window.location.href !== destination) {
+          window.location.href = destination;
+        }
       },
     });
 
     const { routes, menu } = resolveRegistry(config);
-    const router = createOonRouter({ app: config.app, menu, routes, security: config.security });
+    const router = createOonRouter({
+      app: config.app,
+      menu,
+      routes,
+      security: config.security,
+    });
 
     return { http, storage, router };
   }, [config]);
