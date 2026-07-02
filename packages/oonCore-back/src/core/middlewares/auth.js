@@ -1,38 +1,83 @@
 const axios = require("axios");
-const Sistema = require("../models/Sistema");
 const Helpers = require("../utils/helpers");
 const ctx = require("../context");
 
-/**
- * Verificador padrão: delega ao Meus Apps (comportamento histórico do CST).
- * Pode ser sobrescrito via `central.config.js -> auth.verifyToken`.
- */
-async function defaultVerifyToken(token) {
-  const sistema = await Sistema.findOne().catch(() => null);
-  const baseUrl = process.env.MEUS_APPS_BACKEND_URL;
-  if (!baseUrl) {
-    const err = new Error("MEUS_APPS_BACKEND_URL não configurada.");
-    err.statusCode = 401;
-    throw err;
-  }
+function getActivationBaseUrl() {
+  return (
+    process.env.CENTRAL_ATIVACAO_URL || process.env.MEUS_APPS_BACKEND_URL || ""
+  ).replace(/\/$/, "");
+}
 
-  const response = await axios.get(
-    `${baseUrl}/auth/autenticar-aplicativo/`,
-    { headers: { Authorization: `Bearer ${token}`, origin: sistema?.appKey } }
-  );
-
-  const data = response.data.usuario;
-  return {
-    tipo:
-      data.aplicativo.tipoAcesso === "master" ? "admin" : data.aplicativo.tipoAcesso,
-    nome: data.nome,
-    email: data.email,
-  };
+function getAppCode() {
+  return String(
+    process.env.APP_CODE || process.env.APP_CODIGO || process.env.APP_KEY || "",
+  )
+    .trim()
+    .toLowerCase();
 }
 
 /**
- * Middleware de autenticação. Sem token => 401 (invariante de segurança).
- * Resolve `req.usuario` e segue.
+ * Verificador padrão: valida o token e a permissão do usuário para o app na
+ * Central de Ativações. O código do app existe somente no backend.
+ * Pode ser sobrescrito via `central.config.js -> auth.verifyToken`.
+ */
+async function defaultVerifyToken(token) {
+  const baseUrl = getActivationBaseUrl();
+  const appCode = getAppCode();
+
+  if (!baseUrl) {
+    const error = new Error("CENTRAL_ATIVACAO_URL não configurada.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  if (!appCode) {
+    const error = new Error("APP_CODE não configurada no backend.");
+    error.statusCode = 500;
+    throw error;
+  }
+
+  try {
+    const response = await axios.get(
+      `${baseUrl}/auth/verificar-permissao-aplicativo`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-app-code": appCode,
+        },
+      },
+    );
+
+    const data = response.data?.usuario;
+    if (!data) {
+      const error = new Error("Usuário não retornado pela Central de Ativações.");
+      error.statusCode = 502;
+      throw error;
+    }
+
+    return {
+      ...data,
+      tipo:
+        data.tipo === "master" || data.perfil === "administrador"
+          ? "admin"
+          : data.tipo || data.perfil,
+    };
+  } catch (error) {
+    if (error.statusCode) throw error;
+
+    const translated = new Error(
+      error.response?.data?.message ||
+        "Não foi possível validar a permissão do aplicativo.",
+    );
+    translated.statusCode = error.response?.status || 502;
+    translated.details = error.response?.data?.error;
+    throw translated;
+  }
+}
+
+/**
+ * Middleware de autenticação. Sem token => 401. Token válido sem permissão no
+ * app => 403. Resolve `req.usuario` somente após ambas as validações.
  */
 const authMiddleware = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -49,14 +94,26 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const usuario = await verify(token, { req });
-    if (!usuario) throw new Error("Usuário não resolvido.");
+    if (!usuario) {
+      const error = new Error("Usuário não resolvido.");
+      error.statusCode = 401;
+      throw error;
+    }
     req.usuario = usuario;
     next();
   } catch (error) {
+    const statusCode = error.statusCode || error.response?.status || 401;
+    const message =
+      statusCode === 403
+        ? "Usuário sem permissão para acessar este aplicativo."
+        : statusCode === 401
+          ? "Token inválido ou expirado."
+          : "Erro ao validar autenticação e permissão do aplicativo.";
+
     return Helpers.sendErrorResponse({
       res,
-      message: "Token inválido ou erro na autenticação.",
-      statusCode: error.statusCode || 401,
+      message,
+      statusCode,
     });
   }
 };
