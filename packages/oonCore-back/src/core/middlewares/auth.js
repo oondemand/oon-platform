@@ -1,52 +1,27 @@
 const axios = require("axios");
 const Helpers = require("../utils/helpers");
 const ctx = require("../context");
+const {
+  PERMISSION_PATH,
+  getBaseUrl,
+  getAppCode,
+  getTimeout,
+} = require("../utils/activationProvider");
 
-function getActivationBaseUrl() {
-  return (
-    process.env.CENTRAL_ATIVACAO_URL || process.env.MEUS_APPS_BACKEND_URL || ""
-  ).replace(/\/$/, "");
-}
-
-function getAppCode() {
-  return String(
-    process.env.APP_CODE || process.env.APP_CODIGO || process.env.APP_KEY || "",
-  )
-    .trim()
-    .toLowerCase();
-}
-
-/**
- * Verificador padrão: valida o token e a permissão do usuário para o app na
- * Central de Ativações. O código do app existe somente no backend.
- * Pode ser sobrescrito via `central.config.js -> auth.verifyToken`.
- */
-async function defaultVerifyToken(token) {
-  const baseUrl = getActivationBaseUrl();
+async function defaultVerifyToken(token, context = {}) {
+  const baseUrl = getBaseUrl(context.req);
   const appCode = getAppCode();
 
-  if (!baseUrl) {
-    const error = new Error("CENTRAL_ATIVACAO_URL não configurada.");
-    error.statusCode = 500;
-    throw error;
-  }
-
-  if (!appCode) {
-    const error = new Error("APP_CODE não configurada no backend.");
-    error.statusCode = 500;
-    throw error;
-  }
-
   try {
-    const response = await axios.get(
-      `${baseUrl}/auth/verificar-permissao-aplicativo`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-app-code": appCode,
-        },
-      },
-    );
+    const headers = {
+      "x-app-code": appCode,
+      Authorization: `Bearer ${token}`,
+    };
+    const response = await axios.get(`${baseUrl}${PERMISSION_PATH}`, {
+      headers,
+      timeout: getTimeout(),
+      maxRedirects: 0,
+    });
 
     const data = response.data?.usuario;
     if (!data) {
@@ -64,21 +39,18 @@ async function defaultVerifyToken(token) {
     };
   } catch (error) {
     if (error.statusCode) throw error;
-
+    const timedOut = error.code === "ECONNABORTED";
     const translated = new Error(
       error.response?.data?.message ||
-        "Não foi possível validar a permissão do aplicativo.",
+        (timedOut
+          ? "A Central de Ativações não respondeu dentro do prazo."
+          : "Não foi possível validar a permissão do aplicativo."),
     );
-    translated.statusCode = error.response?.status || 502;
-    translated.details = error.response?.data?.error;
+    translated.statusCode = timedOut ? 504 : error.response?.status || 502;
     throw translated;
   }
 }
 
-/**
- * Middleware de autenticação. Sem token => 401. Token válido sem permissão no
- * app => 403. Resolve `req.usuario` somente após ambas as validações.
- */
 const authMiddleware = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -102,19 +74,15 @@ const authMiddleware = async (req, res, next) => {
     req.usuario = usuario;
     next();
   } catch (error) {
-    const statusCode = error.statusCode || error.response?.status || 401;
+    const statusCode = error.statusCode || error.response?.status || 502;
     const message =
       statusCode === 403
         ? "Usuário sem permissão para acessar este aplicativo."
         : statusCode === 401
           ? "Token inválido ou expirado."
-          : "Erro ao validar autenticação e permissão do aplicativo.";
+          : error.message || "Erro ao validar autenticação e permissão do aplicativo.";
 
-    return Helpers.sendErrorResponse({
-      res,
-      message,
-      statusCode,
-    });
+    return Helpers.sendErrorResponse({ res, message, statusCode });
   }
 };
 
