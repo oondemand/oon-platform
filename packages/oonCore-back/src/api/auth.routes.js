@@ -2,22 +2,15 @@ const express = require("express");
 const axios = require("axios");
 const auth = require("../core/middlewares/auth");
 const GenericError = require("../core/errors/GenericError");
+const {
+  LOGIN_PATH,
+  getBaseUrl,
+  getAppCode,
+  getTimeout,
+} = require("../core/utils/activationProvider");
 const { asyncHandler, sendResponse } = require("../core/utils/helpers");
 
 const router = express.Router();
-
-function getActivationBaseUrl() {
-  const value =
-    process.env.CENTRAL_ATIVACAO_URL || process.env.MEUS_APPS_BACKEND_URL;
-
-  if (!value) {
-    throw new GenericError("CENTRAL_ATIVACAO_URL não configurada.", {
-      statusCode: 500,
-    });
-  }
-
-  return value.replace(/\/$/, "");
-}
 
 function readBasicAuthorization(req) {
   const authorization = String(req.headers.authorization || "");
@@ -29,33 +22,36 @@ function readBasicAuthorization(req) {
   return authorization;
 }
 
-function translateProviderError(error, fallbackMessage) {
-  const statusCode = error.response?.status || error.statusCode || 502;
-  const providerMessage = error.response?.data?.message;
-
-  return new GenericError(providerMessage || fallbackMessage, {
-    statusCode,
-    details: error.response?.data?.error || null,
-  });
+function translateProviderError(error) {
+  if (error instanceof GenericError) return error;
+  const timedOut = error.code === "ECONNABORTED";
+  const statusCode = timedOut ? 504 : error.response?.status || 502;
+  const message =
+    error.response?.data?.message ||
+    (timedOut
+      ? "A Central de Ativações não respondeu dentro do prazo."
+      : "Não foi possível autenticar o usuário na Central de Ativações.");
+  return new GenericError(message, { statusCode });
 }
 
-/**
- * Login local da Central consumidora. O frontend envia apenas Basic Auth; o
- * backend delega a validação das credenciais à Central de Ativações.
- */
 router.post(
   "/autenticar",
   asyncHandler(async (req, res) => {
     const authorization = readBasicAuthorization(req);
+    const baseUrl = getBaseUrl();
+    const appCode = getAppCode();
 
     try {
       const response = await axios.post(
-        `${getActivationBaseUrl()}/auth/autenticar`,
+        `${baseUrl}${LOGIN_PATH}`,
         {},
         {
+          timeout: getTimeout(),
+          maxRedirects: 0,
           headers: {
             Authorization: authorization,
             "Content-Type": "application/json",
+            "x-app-code": appCode,
           },
         },
       );
@@ -63,15 +59,11 @@ router.post(
       res.set("Cache-Control", "no-store");
       res.status(response.status).json(response.data);
     } catch (error) {
-      throw translateProviderError(error, "Não foi possível autenticar o usuário.");
+      throw translateProviderError(error);
     }
   }),
 );
 
-/**
- * Valida o token e, pelo middleware do Core, confirma se o usuário possui
- * permissão ativa para o aplicativo configurado no backend.
- */
 router.get(
   "/validar-token",
   auth,
