@@ -36,7 +36,9 @@ export function AppAccessGuard({ children }: { children: ReactNode }) {
       <LoadingScreen
         message="Não foi possível validar seu acesso. Tente novamente."
         actionLabel="Tentar novamente"
-        onAction={() => void retry()}
+        onAction={() => {
+          void retry().catch(() => undefined);
+        }}
       />
     );
   }
