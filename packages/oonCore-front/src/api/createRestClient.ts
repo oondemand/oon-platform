@@ -18,8 +18,6 @@ export interface RestClientDeps {
  *  - injeção de Bearer token;
  *  - headers de auditoria x-oon-* nas mutações;
  *  - tratamento global de 401 e normalização de erro.
- *
- * Nenhuma página de domínio deve instanciar axios diretamente.
  */
 export function createRestClient(deps: RestClientDeps): AxiosInstance {
   const { api, getToken, onUnauthorized, appId } = deps;
@@ -31,7 +29,6 @@ export function createRestClient(deps: RestClientDeps): AxiosInstance {
   });
 
   instance.interceptors.request.use((config) => {
-    // Em interceptors do axios v1, config.headers já é um AxiosHeaders.
     const token = getToken();
     if (token) config.headers.Authorization = `Bearer ${token}`;
     if (appId) config.headers["x-oon-app"] = appId;
@@ -42,7 +39,11 @@ export function createRestClient(deps: RestClientDeps): AxiosInstance {
     (res) => res,
     (error) => {
       const normalized = normalizeError(error);
-      if (normalized.status === 401) onUnauthorized?.();
+      const requestPath = String(error.config?.url || "")
+        .split("?")[0]
+        .replace(/\/$/, "");
+      const isLogin = requestPath.endsWith("/auth/autenticar");
+      if (normalized.status === 401 && !isLogin) onUnauthorized?.();
       return Promise.reject(normalized);
     }
   );

@@ -33,7 +33,9 @@ const DEFAULTS = {
   JWT_SECRET: "",
   OMIE_APP_KEY: "",
   OMIE_APP_SECRET: "",
+  CENTRAL_ATIVACAO_URL: "",
   MEUS_APPS_BACKEND_URL: "",
+  APP_CODE: "",
 };
 
 const K8S_TEMPLATES = [

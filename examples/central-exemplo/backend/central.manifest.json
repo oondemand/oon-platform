@@ -4,6 +4,8 @@
   "IMAGE": "ghcr.io/oondemand/central-exemplo-backend",
   "IMAGE_TAG": "latest",
   "HOST": "central-exemplo.oondemand.com",
+  "CENTRAL_ATIVACAO_URL": "https://central-ativacao.example.com",
+  "APP_CODE": "central-exemplo",
   "REPLICAS": "1",
   "HPA_MIN": "1",
   "HPA_MAX": "3"

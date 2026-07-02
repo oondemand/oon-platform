@@ -1,39 +1,56 @@
 const axios = require("axios");
-const Sistema = require("../models/Sistema");
 const Helpers = require("../utils/helpers");
 const ctx = require("../context");
+const {
+  PERMISSION_PATH,
+  getBaseUrl,
+  getAppCode,
+  getTimeout,
+} = require("../utils/activationProvider");
 
-/**
- * Verificador padrão: delega ao Meus Apps (comportamento histórico do CST).
- * Pode ser sobrescrito via `central.config.js -> auth.verifyToken`.
- */
-async function defaultVerifyToken(token) {
-  const sistema = await Sistema.findOne().catch(() => null);
-  const baseUrl = process.env.MEUS_APPS_BACKEND_URL;
-  if (!baseUrl) {
-    const err = new Error("MEUS_APPS_BACKEND_URL não configurada.");
-    err.statusCode = 401;
-    throw err;
+async function defaultVerifyToken(token, context = {}) {
+  const baseUrl = getBaseUrl(context.req);
+  const appCode = getAppCode();
+
+  try {
+    const headers = {
+      "x-app-code": appCode,
+      Authorization: `Bearer ${token}`,
+    };
+    const response = await axios.get(`${baseUrl}${PERMISSION_PATH}`, {
+      headers,
+      timeout: getTimeout(),
+      maxRedirects: 0,
+    });
+
+    const data = response.data?.usuario;
+    if (!data) {
+      const error = new Error("Usuário não retornado pela Central de Ativações.");
+      error.statusCode = 502;
+      throw error;
+    }
+
+    return {
+      ...data,
+      tipo:
+        data.tipo === "master" || data.perfil === "administrador"
+          ? "admin"
+          : data.tipo || data.perfil,
+    };
+  } catch (error) {
+    if (error.statusCode) throw error;
+    const timedOut = error.code === "ECONNABORTED";
+    const translated = new Error(
+      error.response?.data?.message ||
+        (timedOut
+          ? "A Central de Ativações não respondeu dentro do prazo."
+          : "Não foi possível validar a permissão do aplicativo."),
+    );
+    translated.statusCode = timedOut ? 504 : error.response?.status || 502;
+    throw translated;
   }
-
-  const response = await axios.get(
-    `${baseUrl}/auth/autenticar-aplicativo/`,
-    { headers: { Authorization: `Bearer ${token}`, origin: sistema?.appKey } }
-  );
-
-  const data = response.data.usuario;
-  return {
-    tipo:
-      data.aplicativo.tipoAcesso === "master" ? "admin" : data.aplicativo.tipoAcesso,
-    nome: data.nome,
-    email: data.email,
-  };
 }
 
-/**
- * Middleware de autenticação. Sem token => 401 (invariante de segurança).
- * Resolve `req.usuario` e segue.
- */
 const authMiddleware = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -49,15 +66,23 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const usuario = await verify(token, { req });
-    if (!usuario) throw new Error("Usuário não resolvido.");
+    if (!usuario) {
+      const error = new Error("Usuário não resolvido.");
+      error.statusCode = 401;
+      throw error;
+    }
     req.usuario = usuario;
     next();
   } catch (error) {
-    return Helpers.sendErrorResponse({
-      res,
-      message: "Token inválido ou erro na autenticação.",
-      statusCode: error.statusCode || 401,
-    });
+    const statusCode = error.statusCode || error.response?.status || 502;
+    const message =
+      statusCode === 403
+        ? "Usuário sem permissão para acessar este aplicativo."
+        : statusCode === 401
+          ? "Token inválido ou expirado."
+          : error.message || "Erro ao validar autenticação e permissão do aplicativo.";
+
+    return Helpers.sendErrorResponse({ res, message, statusCode });
   }
 };
 
