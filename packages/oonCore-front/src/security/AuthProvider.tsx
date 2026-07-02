@@ -1,14 +1,30 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { AxiosInstance } from "axios";
-import type { OonAuthConfig, OonUser } from "../types";
+import type { OonAuthConfig, OonError, OonUser } from "../types";
 import { captureTokenFromUrl, type TokenStorage } from "./tokenStorage";
+
+export type AuthStatus =
+  | "loading"
+  | "authenticated"
+  | "unauthenticated"
+  | "forbidden"
+  | "error";
 
 interface AuthContextValue {
   user: OonUser | null;
   roles: string[];
-  status: "loading" | "authenticated" | "unauthenticated";
+  status: AuthStatus;
   isAuthenticated: boolean;
   hasPermission: (permission?: string | string[]) => boolean;
+  login: (email: string, password: string) => Promise<void>;
+  retry: () => Promise<void>;
   logout: () => void;
 }
 
@@ -18,75 +34,167 @@ export interface AuthProviderProps {
   http: AxiosInstance;
   storage: TokenStorage;
   auth?: OonAuthConfig;
-  /** URL externa de login (Meus Apps) para redirecionar quando sem sessão. */
+  /** URL externa opcional. Sem ela, o Core usa a tela local em /login. */
   loginUrl?: string;
   children: ReactNode;
 }
 
+function errorStatus(error: unknown): number | undefined {
+  return (error as OonError | undefined)?.status;
+}
+
+function encodeBasicCredentials(email: string, password: string): string {
+  const bytes = new TextEncoder().encode(`${email}:${password}`);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return window.btoa(binary);
+}
+
 /**
- * Provider de autenticação do Core. Fluxo (Seção 2.4 do back / 6.2 da doc):
- *  1. captura token do ?code= ou usa o token local de desenvolvimento;
- *  2. persiste o token selecionado no tokenStorage;
- *  3. valida em GET /auth/validar-token e resolve `usuario`;
- *  4. somente sem token ou com token inválido redireciona para o login externo.
- *
- * Backend continua sendo a autoridade final — inclusive no desenvolvimento.
- * O RBAC do front é só UX.
+ * Provider de autenticação do Core:
+ *  1. captura token do ?code=, token de desenvolvimento ou storage;
+ *  2. valida o token e a permissão do app em GET /auth/validar-token;
+ *  3. trata 401 como ausência de sessão e 403 como acesso negado;
+ *  4. oferece login local via POST /auth/autenticar.
  */
-export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthProviderProps) {
+export function AuthProvider({
+  http,
+  storage,
+  auth,
+  loginUrl,
+  children,
+}: AuthProviderProps) {
   const tokenParam = auth?.tokenParam ?? "code";
   const devToken = auth?.devToken?.trim() || null;
   const [user, setUser] = useState<OonUser | null>(null);
-  const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
+  const [status, setStatus] = useState<AuthStatus>("loading");
 
-  const redirectToLogin = useCallback(() => {
-    if (loginUrl) {
-      window.location.href = loginUrl;
-    } else {
-      setStatus("unauthenticated");
-    }
+  const redirectToExternalLogin = useCallback(() => {
+    if (loginUrl) window.location.href = loginUrl;
   }, [loginUrl]);
+
+  const applyValidationError = useCallback(
+    (error: unknown) => {
+      const currentStatus = errorStatus(error);
+      setUser(null);
+
+      if (currentStatus === 403) {
+        setStatus("forbidden");
+        return;
+      }
+
+      if (currentStatus === 401) {
+        storage.clear();
+        setStatus("unauthenticated");
+        redirectToExternalLogin();
+        return;
+      }
+
+      setStatus("error");
+    },
+    [storage, redirectToExternalLogin],
+  );
+
+  const validateSession = useCallback(async () => {
+    const response = await http.get<{ usuario: OonUser }>(
+      "/auth/validar-token",
+    );
+    setUser(response.data.usuario);
+    setStatus("authenticated");
+  }, [http]);
+
+  const retry = useCallback(async () => {
+    setStatus("loading");
+    try {
+      await validateSession();
+    } catch (error) {
+      applyValidationError(error);
+      throw error;
+    }
+  }, [validateSession, applyValidationError]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      setStatus("loading");
+      setUser(null);
+
+      try {
+        const response = await http.post<{ token: string }>(
+          "/auth/autenticar",
+          {},
+          {
+            headers: {
+              Authorization: `Basic ${encodeBasicCredentials(email, password)}`,
+            },
+          },
+        );
+
+        if (!response.data.token) {
+          const error: OonError = {
+            code: "AUTH_TOKEN_MISSING",
+            message: "Token não retornado pelo backend.",
+            status: 502,
+          };
+          throw error;
+        }
+
+        storage.set(response.data.token);
+        await validateSession();
+      } catch (error) {
+        applyValidationError(error);
+        throw error;
+      }
+    },
+    [http, storage, validateSession, applyValidationError],
+  );
 
   const logout = useCallback(() => {
     storage.clear();
     setUser(null);
-    redirectToLogin();
-  }, [storage, redirectToLogin]);
+    setStatus("unauthenticated");
+    redirectToExternalLogin();
+  }, [storage, redirectToExternalLogin]);
 
   useEffect(() => {
     let active = true;
 
     const incoming = captureTokenFromUrl(tokenParam);
     const stored = storage.get();
-    // SSO recebido pela URL sempre vence. Em desenvolvimento, o token
-    // configurado vence um valor antigo do storage para evitar redirects por
-    // sessão local obsoleta. Fora disso, reutilizamos a sessão persistida.
     const token = incoming ?? devToken ?? stored;
 
     if (token && token !== stored) storage.set(token);
 
     if (!token) {
-      redirectToLogin();
+      setUser(null);
+      setStatus("unauthenticated");
+      redirectToExternalLogin();
       return;
     }
 
+    setStatus("loading");
     http
       .get<{ usuario: OonUser }>("/auth/validar-token")
-      .then((res) => {
+      .then((response) => {
         if (!active) return;
-        setUser(res.data.usuario);
+        setUser(response.data.usuario);
         setStatus("authenticated");
       })
-      .catch(() => {
+      .catch((error) => {
         if (!active) return;
-        storage.clear();
-        redirectToLogin();
+        applyValidationError(error);
       });
 
     return () => {
       active = false;
     };
-  }, [http, storage, tokenParam, devToken, redirectToLogin]);
+  }, [
+    http,
+    storage,
+    tokenParam,
+    devToken,
+    redirectToExternalLogin,
+    applyValidationError,
+  ]);
 
   const roles = user?.tipo ? [user.tipo] : [];
 
@@ -95,11 +203,14 @@ export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthPr
       if (!permission) return true;
       const required = Array.isArray(permission) ? permission : [permission];
       if (required.length === 0) return true;
-      // admin/master sempre passa; demais checam interseção simples por papel.
       if (roles.includes("admin") || roles.includes("master")) return true;
-      return required.some((p) => roles.includes(p) || roles.some((r) => p.startsWith(`${r}.`)));
+      return required.some(
+        (value) =>
+          roles.includes(value) ||
+          roles.some((role) => value.startsWith(`${role}.`)),
+      );
     },
-    [roles]
+    [roles],
   );
 
   const value: AuthContextValue = {
@@ -108,6 +219,8 @@ export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthPr
     status,
     isAuthenticated: status === "authenticated",
     hasPermission,
+    login,
+    retry,
     logout,
   };
 
@@ -115,7 +228,11 @@ export function AuthProvider({ http, storage, auth, loginUrl, children }: AuthPr
 }
 
 export function useOonAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useOonAuth deve ser usado dentro de <AuthProvider> (oonCoreFront.start).");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error(
+      "useOonAuth deve ser usado dentro de <AuthProvider> (oonCoreFront.start).",
+    );
+  }
+  return context;
 }
