@@ -5,6 +5,11 @@ const {
   defaultVerifyToken,
 } = require("../src/core/middlewares/auth");
 
+function restoreEnv(name, value) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
 test("defaultVerifyToken envia APP_CODE e preserva o perfil retornado", async () => {
   const originalGet = axios.get;
   const originalUrl = process.env.CENTRAL_ATIVACAO_URL;
@@ -42,8 +47,8 @@ test("defaultVerifyToken envia APP_CODE e preserva o perfil retornado", async ()
     assert.deepEqual(usuario.permissoes, { podePublicar: true });
   } finally {
     axios.get = originalGet;
-    process.env.CENTRAL_ATIVACAO_URL = originalUrl;
-    process.env.APP_CODE = originalCode;
+    restoreEnv("CENTRAL_ATIVACAO_URL", originalUrl);
+    restoreEnv("APP_CODE", originalCode);
   }
 });
 
@@ -78,7 +83,7 @@ test("defaultVerifyToken propaga 403 quando o usuário não possui o app", async
     );
   } finally {
     axios.get = originalGet;
-    process.env.CENTRAL_ATIVACAO_URL = originalUrl;
-    process.env.APP_CODE = originalCode;
+    restoreEnv("CENTRAL_ATIVACAO_URL", originalUrl);
+    restoreEnv("APP_CODE", originalCode);
   }
 });
