@@ -1,6 +1,9 @@
 import { Navigate, createBrowserRouter, type RouteObject } from "react-router-dom";
 import type { OonAppConfig, OonMenuItem, OonRoute, OonSecurityConfig } from "../types";
 import { AuthenticatedLayout } from "../shell/AuthenticatedLayout";
+import { AccessDeniedPage } from "../security/AccessDeniedPage";
+import { AppAccessGuard } from "../security/AppAccessGuard";
+import { LoginPage } from "../security/LoginPage";
 import { RouteGuard } from "../security/RouteGuard";
 
 export interface RouterInput {
@@ -10,31 +13,60 @@ export interface RouterInput {
   security?: OonSecurityConfig;
 }
 
-/** Constrói o router e garante uma entrada válida mesmo sem dashboard explícito. */
+/** Constrói o router, incluindo os estados públicos de autenticação. */
 export function createOonRouter({ app, menu, routes, security }: RouterInput) {
   const guardEnabled = security?.enableRouteGuard !== false;
 
   const publicRoutes: RouteObject[] = routes
-    .filter((r) => r.public)
-    .map((r) => ({ path: r.path, element: r.element }));
+    .filter((route) => route.public)
+    .map((route) => ({ path: route.path, element: route.element }));
 
-  const privateSource = routes.filter((r) => !r.public);
-  const privateRoutes: RouteObject[] = privateSource.map((r) => {
-    const element = guardEnabled ? <RouteGuard permission={r.permissions}>{r.element}</RouteGuard> : r.element;
-    return r.path === "/" ? { index: true, element } : { path: r.path.replace(/^\//, ""), element };
+  const privateSource = routes.filter((route) => !route.public);
+  const privateRoutes: RouteObject[] = privateSource.map((route) => {
+    const element = guardEnabled ? (
+      <RouteGuard permission={route.permissions}>{route.element}</RouteGuard>
+    ) : (
+      route.element
+    );
+
+    return route.path === "/"
+      ? { index: true, element }
+      : { path: route.path.replace(/^\//, ""), element };
   });
 
   const hasIndexRoute = privateSource.some((route) => route.path === "/");
   const firstRoute = privateSource.find((route) => route.path !== "/");
   if (!hasIndexRoute && firstRoute) {
-    privateRoutes.unshift({ index: true, element: <Navigate to={firstRoute.path} replace /> });
+    privateRoutes.unshift({
+      index: true,
+      element: <Navigate to={firstRoute.path} replace />,
+    });
+  }
+
+  const customPaths = new Set(publicRoutes.map((route) => route.path));
+  const builtInPublicRoutes: RouteObject[] = [];
+
+  if (!customPaths.has("/login")) {
+    builtInPublicRoutes.push({ path: "/login", element: <LoginPage app={app} /> });
+  }
+
+  if (!customPaths.has("/acesso-negado")) {
+    builtInPublicRoutes.push({
+      path: "/acesso-negado",
+      element: <AccessDeniedPage app={app} />,
+    });
   }
 
   const tree: RouteObject[] = [
+    ...builtInPublicRoutes,
     ...publicRoutes,
     {
       path: "/",
-      element: <AuthenticatedLayout app={app} menu={menu} />,
+      element: (
+        <AppAccessGuard>
+          <AuthenticatedLayout app={app} menu={menu} />
+        </AppAccessGuard>
+      ),
       children: privateRoutes,
     },
   ];
