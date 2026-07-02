@@ -9,7 +9,6 @@ import { createOonRouter } from "./createOonRouter";
 
 function localLoginUrl(): string {
   const current = `${window.location.pathname}${window.location.search}`;
-  if (window.location.pathname === "/login") return "/login";
   return `/login?redirect=${encodeURIComponent(current)}`;
 }
 
@@ -28,9 +27,14 @@ export function OonApp({ config }: { config: OonCoreFrontConfig }) {
       getToken: () => storage.get(),
       onUnauthorized: () => {
         storage.clear();
-        const destination = externalLoginUrl || localLoginUrl();
-        if (window.location.href !== destination) {
-          window.location.href = destination;
+
+        if (externalLoginUrl) {
+          window.location.href = externalLoginUrl;
+          return;
+        }
+
+        if (window.location.pathname !== "/login") {
+          window.location.href = localLoginUrl();
         }
       },
     });
